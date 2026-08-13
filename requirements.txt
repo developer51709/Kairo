@@ -1,0 +1,24 @@
+# Kairo — Python Dependencies
+# Install with: pip install -r requirements.txt
+#
+# All versions are pinned to ensure reproducible installs.
+# Update versions explicitly and test before bumping.
+
+# ── Discord ────────────────────────────────────────────────────────
+# discord.py 2.7.1 — Kairo's primary Discord API library.
+# Components V2 support requires discord.py 2.4+ (with the IS_COMPONENTS_V2 flag).
+discord.py==2.7.1
+
+# ── Database ───────────────────────────────────────────────────────
+# aiosqlite — Async wrapper for SQLite. Runs SQLite I/O in a thread pool
+# to keep the asyncio event loop (and Discord gateway) non-blocking.
+aiosqlite==0.20.0
+
+# ── Environment ────────────────────────────────────────────────────
+# python-dotenv — Loads .env files into os.environ on startup.
+python-dotenv==1.0.1
+
+# ── API Server ─────────────────────────────────────────────────────
+# aiohttp — Async HTTP server for the REST API used by the dashboard.
+# Optional: only needed when running with --with-api.
+aiohttp==3.10.5

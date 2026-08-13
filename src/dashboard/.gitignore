@@ -1,1 +1,17 @@
+# Vite / Node.js
+node_modules/
+dist/
+.vite/
 
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
