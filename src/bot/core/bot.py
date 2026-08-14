@@ -144,10 +144,10 @@ class KairoBot(commands.Bot):
         """
         # TODO: Replace with auto-discovery once feature cogs are implemented.
         cog_modules: list[str] = [
-            # "src.bot.features.moderation.cog",
-            # "src.bot.features.automod.cog",
-            # "src.bot.features.logging.cog",
-            # "src.bot.features.utility.cog",
+            "src.bot.features.moderation.cog",
+            "src.bot.features.automod.cog",
+            "src.bot.features.logging.cog",
+            "src.bot.features.utility.cog",
         ]
 
         for module in cog_modules:
