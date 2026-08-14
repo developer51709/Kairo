@@ -5,6 +5,14 @@ Utility Cog
 
 General purpose information and utility slash commands.
 Uses Components V2 panels for rich, formatted responses.
+
+Commands:
+    /help       — Show all available commands grouped by category
+    /ping       — Check Kairo's response latency
+    /botinfo    — Display information about Kairo
+    /userinfo   — Display information about a user
+    /serverinfo — Display information about this server
+    /avatar     — Display a user's avatar
 """
 
 from __future__ import annotations
@@ -21,6 +29,14 @@ from ...components import Panel, Container, Section, Text, Separator
 
 log = get_logger(__name__)
 
+# Emoji icons for known cog categories.
+_CATEGORY_ICONS: dict[str, str] = {
+    "Utility":    "🔧",
+    "Moderation": "🔨",
+    "AutoMod":    "🤖",
+    "Logging":    "📋",
+}
+
 
 class UtilityCog(commands.Cog, name="Utility"):
     """
@@ -29,6 +45,116 @@ class UtilityCog(commands.Cog, name="Utility"):
 
     def __init__(self, bot: KairoBot) -> None:
         self.bot = bot
+
+    # ------------------------------------------------------------------ #
+    # Help                                                                 #
+    # ------------------------------------------------------------------ #
+
+    @app_commands.command(name="help", description="Show all available Kairo commands.")
+    @app_commands.describe(category="Optional: show commands for a specific category only.")
+    async def help(
+        self,
+        interaction: discord.Interaction,
+        category: Optional[str] = None,
+    ) -> None:
+        """
+        Display all registered slash commands grouped by cog/category.
+
+        When *category* is provided, only commands belonging to that cog are
+        shown.  The lookup is case-insensitive.
+        """
+        # Build a mapping of {cog_name: [app_commands.Command, ...]} from the
+        # bot's command tree.  We iterate over the tree's global commands so
+        # that commands registered by every loaded cog are included.
+        grouped: dict[str, list[app_commands.Command]] = {}
+
+        for cmd in self.bot.tree.get_commands():
+            # Only handle leaf commands (not groups) for now.
+            if not isinstance(cmd, app_commands.Command):
+                continue
+            cog_name = cmd.binding.qualified_name if cmd.binding else "Other"
+            grouped.setdefault(cog_name, []).append(cmd)
+
+        # Sort categories alphabetically so the output is stable.
+        sorted_categories = sorted(grouped.keys())
+
+        # ---- Category filter ----
+        if category:
+            # Case-insensitive match against the category name.
+            match = next(
+                (name for name in sorted_categories if name.lower() == category.lower()),
+                None,
+            )
+            if match is None:
+                available = ", ".join(f"`{n}`" for n in sorted_categories)
+                panel = Panel(
+                    Container(
+                        Text(f"❌ Category **{category}** not found."),
+                        Separator(divider=True),
+                        Text(f"**Available categories:** {available}"),
+                    ),
+                    ephemeral=True,
+                )
+                await panel.send(interaction)
+                return
+            sorted_categories = [match]
+
+        # ---- Build the panel ----
+        # One Container per category keeps each section visually distinct.
+        containers: list[Container] = []
+
+        # Header container.
+        header_text = (
+            f"## 📖 Kairo Help — {sorted_categories[0]}"
+            if category
+            else "## 📖 Kairo Help"
+        )
+        if not category:
+            total = sum(len(cmds) for cmds in grouped.values())
+            subtext = f"**{total}** commands across **{len(sorted_categories)}** categories."
+        else:
+            subtext = f"Showing commands in the **{sorted_categories[0]}** category."
+
+        containers.append(
+            Container(
+                Text(header_text),
+                Text(subtext),
+            )
+        )
+
+        for cat_name in sorted_categories:
+            icon = _CATEGORY_ICONS.get(cat_name, "📦")
+            cmds = sorted(grouped[cat_name], key=lambda c: c.name)
+
+            # Build a formatted string: `/name` — description
+            lines = "\n".join(
+                f"`/{cmd.name}` — {cmd.description}" for cmd in cmds
+            )
+
+            containers.append(
+                Container(
+                    Text(f"**{icon} {cat_name}**"),
+                    Separator(divider=False),
+                    Text(lines),
+                )
+            )
+
+        # Footer hint.
+        containers.append(
+            Container(
+                Separator(divider=True),
+                Text("Use `/help category:<name>` to filter by category."),
+            )
+        )
+
+        panel = Panel(*containers, ephemeral=True)
+        await panel.send(interaction)
+        log.debug(
+            "Help panel sent to %s (category=%r, categories=%d).",
+            interaction.user,
+            category,
+            len(sorted_categories),
+        )
 
     @app_commands.command(name="ping", description="Check Kairo's response latency.")
     async def ping(self, interaction: discord.Interaction) -> None:

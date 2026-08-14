@@ -6,6 +6,7 @@ Utility Feature
 General-purpose information and utility commands.
 
 Commands:
+    /help       — Show all available commands grouped by category
     /userinfo   — Display detailed information about a user
     /serverinfo — Display information about the current server
     /roleinfo   — Display information about a role
