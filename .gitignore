@@ -1,0 +1,5 @@
+# pycache files
+__pycache__
+
+# environment secrets
+.env
