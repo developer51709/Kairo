@@ -130,10 +130,7 @@ class UtilityCog(commands.Cog, name="Utility"):
             ))
 
         # Footer
-        view.add_item(discord.ui.Container(
-            discord.ui.Separator(visible=True),
-            discord.ui.TextDisplay("Use `/help category:<name>` to filter by category."),
-        ))
+        view.add_item(discord.ui.TextDisplay("-# Use `/help category:<name>` to filter by category."))
 
         await send_layout(interaction, view, ephemeral=True)
         log.debug(
