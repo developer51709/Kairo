@@ -25,7 +25,8 @@ from ...core.logging import get_logger
 from ...database.models.moderation import CaseType
 from ...database.repositories.moderation import ModerationRepository
 from ...database.repositories.user import UserRepository
-from ...components import send_layout
+from ...database.repositories.guild import GuildRepository
+from ...components import send_layout, send_layout_to_channel
 
 log = get_logger(__name__)
 
@@ -79,6 +80,10 @@ class ModerationService:
         """Return the user repository."""
         return UserRepository(self.bot.db)  # type: ignore[attr-defined]
 
+    def _guild_repo(self) -> GuildRepository:
+        """Return the guild repository."""
+        return GuildRepository(self.bot.db)  # type: ignore[attr-defined]
+
     # ------------------------------------------------------------------ #
     # Actions                                                              #
     # ------------------------------------------------------------------ #
@@ -118,12 +123,29 @@ class ModerationService:
 
         # TODO: Record case in database once db is wired up (Phase 2).
 
+        # Record case in database
+        case = await self._mod_repo().create_case(
+            guild_id=interaction.guild.id,
+            target_id=member.id,
+            target_username=str(member),
+            moderator_id=interaction.user.id,
+            moderator_username=str(interaction.user),
+            case_type=CaseType.BAN,
+            reason=reason,
+            resolved=False,
+        )
+
         view = _result_view(
             f"✅ **{member}** has been banned.\n"
+            f"**Case:** #{case.id}\n"
             f"**Reason:** {reason or 'No reason provided.'}"
         )
         await send_layout(interaction, view, ephemeral=True)
-        log.info("Banned %s from guild %d (%s)", member, interaction.guild.id, reason)
+        
+        # Send to mod log channel
+        await self._send_mod_log(interaction.guild, case, member)
+        
+        log.info("Banned %s from guild %d (%s) - Case #%d", member, interaction.guild.id, reason, case.id)
 
     async def kick(
         self,
@@ -142,12 +164,29 @@ class ModerationService:
             )
             return
 
+        # Record case in database
+        case = await self._mod_repo().create_case(
+            guild_id=interaction.guild.id,
+            target_id=member.id,
+            target_username=str(member),
+            moderator_id=interaction.user.id,
+            moderator_username=str(interaction.user),
+            case_type=CaseType.KICK,
+            reason=reason,
+            resolved=False,
+        )
+
         view = _result_view(
             f"✅ **{member}** has been kicked.\n"
+            f"**Case:** #{case.id}\n"
             f"**Reason:** {reason or 'No reason provided.'}"
         )
         await send_layout(interaction, view, ephemeral=True)
-        log.info("Kicked %s from guild %d (%s)", member, interaction.guild.id, reason)
+        
+        # Send to mod log channel
+        await self._send_mod_log(interaction.guild, case, member)
+        
+        log.info("Kicked %s from guild %d (%s) - Case #%d", member, interaction.guild.id, reason, case.id)
 
     async def timeout(
         self,
@@ -176,12 +215,30 @@ class ModerationService:
             )
             return
 
+        # Record case in database
+        case = await self._mod_repo().create_case(
+            guild_id=interaction.guild.id,
+            target_id=member.id,
+            target_username=str(member),
+            moderator_id=interaction.user.id,
+            moderator_username=str(interaction.user),
+            case_type=CaseType.TIMEOUT,
+            reason=reason,
+            duration=seconds,
+            resolved=False,
+        )
+
         view = _result_view(
             f"✅ **{member}** has been timed out for **{duration}**.\n"
+            f"**Case:** #{case.id}\n"
             f"**Reason:** {reason or 'No reason provided.'}"
         )
         await send_layout(interaction, view, ephemeral=True)
-        log.info("Timed out %s for %ds in guild %d", member, seconds, interaction.guild.id)
+        
+        # Send to mod log channel
+        await self._send_mod_log(interaction.guild, case, member)
+        
+        log.info("Timed out %s for %ds in guild %d (%s) - Case #%d", member, seconds, interaction.guild.id, reason, case.id)
 
     async def warn(
         self,
@@ -192,27 +249,74 @@ class ModerationService:
         """Issue a warning to a member and record a case + warning entry."""
         assert interaction.guild is not None
 
-        # TODO: Create case and warning in database once db is wired up (Phase 2).
+        # Record case in database
+        case = await self._mod_repo().create_case(
+            guild_id=interaction.guild.id,
+            target_id=member.id,
+            target_username=str(member),
+            moderator_id=interaction.user.id,
+            moderator_username=str(interaction.user),
+            case_type=CaseType.WARN,
+            reason=reason,
+            resolved=False,
+        )
+        
+        # Create warning entry
+        await self._mod_repo().create_warning(case)
 
         view = _result_view(
             f"⚠️ **{member}** has been warned.\n"
+            f"**Case:** #{case.id}\n"
             f"**Reason:** {reason or 'No reason provided.'}"
         )
         await send_layout(interaction, view, ephemeral=True)
-        log.info("Warned %s in guild %d (%s)", member, interaction.guild.id, reason)
+        
+        # Send to mod log channel
+        await self._send_mod_log(interaction.guild, case, member)
+        
+        log.info("Warned %s in guild %d (%s) - Case #%d", member, interaction.guild.id, reason, case.id)
 
     async def show_history(
         self,
         interaction: discord.Interaction,
         member: discord.Member,
     ) -> None:
-        """Display a member's moderation history (placeholder)."""
-        view = discord.ui.LayoutView()
-        view.add_item(discord.ui.Container(
-            discord.ui.TextDisplay(f"## Moderation History — {member}"),
-            discord.ui.Separator(visible=True),
-            discord.ui.TextDisplay("*No moderation history found.*"),
-        ))
+        """Display a member's moderation history."""
+        assert interaction.guild is not None
+        
+        # Get cases for this user
+        cases = await self._mod_repo().get_cases_for_user(
+            guild_id=interaction.guild.id,
+            user_id=member.id
+        )
+        
+        if not cases:
+            view = discord.ui.LayoutView()
+            view.add_item(discord.ui.Container(
+                discord.ui.TextDisplay(f"## Moderation History — {member}"),
+                discord.ui.Separator(visible=True),
+                discord.ui.TextDisplay("*No moderation history found.*"),
+            ))
+            await send_layout(interaction, view, ephemeral=True)
+            return
+        
+        # Build pages for pagination
+        pages = []
+        for case in cases:
+            case_container = discord.ui.Container(
+                discord.ui.TextDisplay(f"### Case #{case.id}"),
+                discord.ui.TextDisplay(f"**Type:** {case.case_type}"),
+                discord.ui.TextDisplay(f"**Target:** {case.target_username}"),
+                discord.ui.TextDisplay(f"**Moderator:** {case.moderator_username}"),
+                discord.ui.TextDisplay(f"**Reason:** {case.reason or 'No reason provided.'}"),
+                discord.ui.TextDisplay(f"**Created:** {case.created_at}"),
+                discord.ui.Separator(visible=True),
+            )
+            pages.append(case_container)
+        
+        # Create pagination view
+        from ...components import Paginator
+        view = Paginator(pages, ephemeral=True)
         await send_layout(interaction, view, ephemeral=True)
 
     async def show_case(
@@ -220,11 +324,103 @@ class ModerationService:
         interaction: discord.Interaction,
         case_id: int,
     ) -> None:
-        """Display a specific moderation case (placeholder)."""
+        """Display a specific moderation case."""
+        assert interaction.guild is not None
+        
+        # Get the case by ID
+        case = await self._mod_repo().get_case(case_id, interaction.guild.id)
+        
+        if case is None:
+            view = discord.ui.LayoutView()
+            view.add_item(discord.ui.Container(
+                discord.ui.TextDisplay(f"## Case #{case_id}"),
+                discord.ui.Separator(visible=True),
+                discord.ui.TextDisplay("*Case not found.*"),
+            ))
+            await send_layout(interaction, view, ephemeral=True)
+            return
+        
         view = discord.ui.LayoutView()
         view.add_item(discord.ui.Container(
-            discord.ui.TextDisplay(f"## Case #{case_id}"),
+            discord.ui.TextDisplay(f"## Case #{case.id}"),
             discord.ui.Separator(visible=True),
-            discord.ui.TextDisplay("*Case lookup is not yet implemented.*"),
+            discord.ui.TextDisplay(f"**Type:** {case.case_type}"),
+            discord.ui.TextDisplay(f"**Target:** {case.target_username} ({case.target_id})"),
+            discord.ui.TextDisplay(f"**Moderator:** {case.moderator_username} ({case.moderator_id})"),
+            discord.ui.TextDisplay(f"**Reason:** {case.reason or 'No reason provided.'}"),
+            discord.ui.TextDisplay(f"**Created:** {case.created_at}"),
+            discord.ui.TextDisplay(f"**Status:** {'Resolved' if case.resolved else 'Active'}"),
         ))
         await send_layout(interaction, view, ephemeral=True)
+
+    # ------------------------------------------------------------------ #
+    # Logging                                                               #
+    # ------------------------------------------------------------------ #
+
+    async def _send_mod_log(
+        self, 
+        guild: discord.Guild, 
+        case: object, 
+        member: Optional[discord.Member] = None
+    ) -> None:
+        """
+        Send a moderation log entry to the configured mod-log channel.
+        
+        Args:
+            guild: The Discord guild where the action occurred.
+            case: The ModerationCase object with action details.
+            member: Optional Discord member who was moderated.
+        """
+        try:
+            # Get guild configuration
+            guild_config = await self._guild_repo().get_or_create(guild.id, guild.name)
+            
+            if guild_config.mod_log_channel is None:
+                # No mod log channel configured
+                return
+            
+            # Get the channel
+            mod_log_channel = guild.get_channel(guild_config.mod_log_channel)
+            if mod_log_channel is None or not hasattr(mod_log_channel, 'send'):
+                # Channel not found or not a text channel
+                log.warning("Mod log channel %d not found in guild %d", guild_config.mod_log_channel, guild.id)
+                return
+            
+            # Build the log message with Components V2
+            case_type_icons = {
+                CaseType.BAN: "🔨",
+                CaseType.KICK: "👢", 
+                CaseType.TIMEOUT: "⏰",
+                CaseType.WARN: "⚠️",
+            }
+            icon = case_type_icons.get(case.case_type, "📋")
+            
+            # Create the layout
+            view = discord.ui.LayoutView()
+            view.add_item(discord.ui.Container(
+                discord.ui.TextDisplay(f"{icon} **Moderation Case #{case.id}**"),
+                discord.ui.Separator(visible=True),
+                discord.ui.TextDisplay(f"**Action:** {case.case_type}"),
+                discord.ui.TextDisplay(f"**Target:** {case.target_username}"),
+                discord.ui.TextDisplay(f"**Moderator:** {case.moderator_username}"),
+            ))
+            
+            if case.reason:
+                view.add_item(discord.ui.Container(
+                    discord.ui.TextDisplay(f"**Reason:** {case.reason}"),
+                ))
+            
+            if case.duration:
+                view.add_item(discord.ui.Container(
+                    discord.ui.TextDisplay(f"**Duration:** {case.duration} seconds"),
+                ))
+                
+            view.add_item(discord.ui.Container(
+                discord.ui.TextDisplay(f"**Time:** {case.created_at}"),
+                discord.ui.Separator(visible=True),
+            ))
+            
+            await send_layout_to_channel(mod_log_channel, view)
+            
+        except Exception as e:
+            log.error("Failed to send mod log: %s", e)

@@ -20,10 +20,15 @@ Exports:
 from .guild import GuildConfig
 from .user import UserRecord
 from .moderation import ModerationCase, Warning
+from .automod import AutoModConfig, AutoModRule, AutoModRuleType, AutoModAction
 
 __all__ = [
     "GuildConfig",
     "UserRecord",
     "ModerationCase",
     "Warning",
+    "AutoModConfig",
+    "AutoModRule",
+    "AutoModRuleType",
+    "AutoModAction",
 ]

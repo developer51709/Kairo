@@ -1,5 +1,113 @@
 # Features
 
+This guide explains how Kairo's feature system works and how to add new features. All features documented here are fully implemented as of Phase 3.
+
+## Available Features
+
+Kairo currently includes the following built-in features:
+
+### 🔨 Moderation
+Fully implemented moderation system with comprehensive case tracking.
+
+- **Commands**: `/ban`, `/kick`, `/timeout`, `/warn`, `/history`, `/case`
+- **Features**:
+  - Ban, kick, and timeout commands with full Discord API integration
+  - Warning system with case tracking and history
+  - Moderation case management with unique case IDs
+  - Full moderation logging to Discord channels with rich Components V2 formatting
+  - All actions recorded in database with timestamps, moderator info, and reasons
+  - Paginated history view for users with many cases
+  - Individual case lookup by case number
+
+### 🤖 AutoMod
+Complete automated moderation rule engine with per-guild configuration.
+
+- **Commands**: `/automod` (configuration interface)
+- **Rule Types**:
+  - Spam detection (messages in time window)
+  - Mention spam detection (too many @mentions in a single message)
+  - Link filtering (Discord invites, external URLs, domain whitelisting/blacklisting)
+  - Word filtering (blocked words/phrases)
+  - Caps filtering (excessive capitalization percentage)
+  - Raid protection (rapid mass joins)
+- **Configurable Actions**: warn, timeout, kick, ban, delete message, notify moderators
+- **Features**:
+  - Per-guild AutoMod configuration stored in database
+  - Priority-based rule processing
+  - AutoMod logging to configured channels
+  - Event listeners for message and member join events
+  - Whitelist/blacklist systems for domains and words
+
+### 🎉 Welcome & Roles
+Complete welcome message and auto-role system.
+
+- **Commands**: `/welcome set`, `/welcome leave`, `/welcome disable`, `/autorole set`, `/autorole clear`
+- **Features**:
+  - Configurable welcome messages with template variables
+  - Configurable leave messages with template variables
+  - Auto-role assignment for new members
+  - Enable/disable toggles for welcome and leave messages
+  - Template variables: `{member}`, `{server}`, `{count}`, `{mention}`, `{user}`
+  - Welcome/leave channels configurable per guild
+  - Messages use Components V2 for rich formatting
+
+### 🎭 Roles
+Interactive role assignment system using Discord Components V2.
+
+- **Commands**: `/role_button`, `/role_menu`, `/role_panel`, `/addrole`, `/removerole`
+- **Features**:
+  - Interactive role buttons (click to get role)
+  - Role selection menus (dropdown selection with multi-select support)
+  - Multi-button role panels (modal-based creation)
+  - Toggle behavior (click to get role, click again to remove)
+  - Support for role emojis and custom labels
+  - Manual role assignment/removal commands
+  - Configurable max selections for menus (1-25)
+  - Automatic role assignment on member join (via auto-role)
+
+### ⚙️ Configuration
+Centralized server configuration system for all Kairo features.
+
+- **Commands**: `/setup`, `/set_modlog`, `/set_locale`, `/set_modrole`, `/config_show`, `/config_reset`, `/toggle_welcome`, `/toggle_leave`
+- **Features**:
+  - Centralized server configuration stored in SQLite database
+  - Per-guild settings for all features
+  - Set mod-log channel for moderation action logging
+  - Set log channel for general server events
+  - Set welcome and leave channels
+  - Set moderator role (grants access to moderation commands)
+  - Set auto-role (automatically assigned to new members)
+  - Set server locale for localized messages
+  - Feature toggles for welcome/leave messages
+  - View complete configuration status
+  - Reset configuration to defaults with confirmation
+  - Interactive setup panel with quick configuration options
+
+### 📋 Logging
+Event logging system with database tracking.
+
+- **Features**:
+  - Guild join/remove event logging
+  - Message edit and delete tracking
+  - Member ban/unban tracking
+  - Scaffold for comprehensive event logging
+  - All events stored in database for audit purposes
+  - Future: Rich Components V2 panels for log displays
+
+### 🔧 Utility
+General purpose commands for server members.
+
+- **Commands**: `/help`, `/ping`, `/botinfo`, `/userinfo`, `/serverinfo`, `/avatar`
+- **Features**:
+  - Help command with Components V2 formatting and category filtering
+  - Ping/latency check with detailed response times
+  - Bot information display (version, uptime, server count)
+  - User information display (joined date, roles, status)
+  - Server information display (member count, channels, roles)
+  - Avatar display with high-resolution image links
+
+---
+
 This guide explains how Kairo's feature system works and how to add new features.
 
 ---
@@ -261,6 +369,9 @@ necessary permissions before attempting the action.
 | Feature      | Module path                       | Commands                                                   |
 |--------------|-----------------------------------|------------------------------------------------------------|
 | Moderation   | `src.bot.features.moderation.cog` | /ban, /kick, /timeout, /warn, /history, /case             |
-| AutoMod      | `src.bot.features.automod.cog`    | (automatic — no commands yet)                              |
-| Logging      | `src.bot.features.logging.cog`    | (automatic — no commands yet)                              |
+| AutoMod      | `src.bot.features.automod.cog`    | /automod                                                   |
+| Logging      | `src.bot.features.logging.cog`    | (automatic — event listeners)                              |
 | Utility      | `src.bot.features.utility.cog`    | /help, /ping, /botinfo, /userinfo, /serverinfo, /avatar   |
+| Welcome      | `src.bot.features.welcome.cog`    | /welcome set, /welcome leave, /welcome disable, /autorole set, /autorole clear |
+| Roles        | `src.bot.features.roles.cog`      | /role_button, /role_menu, /role_panel, /addrole, /removerole |
+| Config       | `src.bot.features.config.cog`     | /setup, /set_modlog, /set_locale, /set_modrole, /config_show, /config_reset, /toggle_welcome, /toggle_leave |

@@ -11,6 +11,7 @@ users, administrators, and developers.
 |-----------------------------------|---------------|--------------------------------------------------|
 | [getting-started.md](getting-started.md) | All      | Install and run Kairo for the first time         |
 | [configuration.md](configuration.md)     | All      | All environment variables explained              |
+| [commands.md](commands.md)               | Users        | Complete list of all slash commands and usage   |
 | [architecture.md](architecture.md)       | Developers | How Kairo is structured internally             |
 | [components.md](components.md)           | Developers | Components V2 abstraction layer guide           |
 | [database.md](database.md)               | Developers | Database models, repositories, and migrations   |
@@ -26,4 +27,8 @@ users, administrators, and developers.
 
 - Getting started → [getting-started.md](getting-started.md)
 - Configuration reference → [configuration.md](configuration.md)
+- Commands reference → [commands.md](commands.md)
 - Architecture overview → [architecture.md](architecture.md)
+- Components V2 → [components.md](components.md)
+- Database guide → [database.md](database.md)
+- Features guide → [features.md](features.md)

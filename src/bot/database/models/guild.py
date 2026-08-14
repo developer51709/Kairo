@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS guilds (
     -- The locale used for bot messages in this guild. Default: 'en'.
     locale          TEXT    NOT NULL DEFAULT 'en',
 
+    -- Welcome message configuration
+    welcome_channel INTEGER,
+    welcome_message TEXT    DEFAULT 'Welcome {member} to {server}!',
+    welcome_enabled INTEGER NOT NULL DEFAULT 1 CHECK (welcome_enabled IN (0, 1)),
+
+    -- Leave message configuration
+    leave_channel   INTEGER,
+    leave_message   TEXT    DEFAULT '{member} has left {server}.',
+    leave_enabled   INTEGER NOT NULL DEFAULT 0 CHECK (leave_enabled IN (0, 1)),
+
     -- ISO 8601 timestamp of the last configuration change.
     updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -71,6 +81,12 @@ class GuildConfig:
         mod_role        (int | None)     Role ID that grants moderator access.
         auto_role       (int | None)     Role ID auto-assigned to new members.
         locale          (str)            Locale code (e.g. 'en', 'fr').
+        welcome_channel (int | None)     Channel ID for welcome messages.
+        welcome_message (str)            Welcome message template.
+        welcome_enabled (bool)           Whether welcome messages are enabled.
+        leave_channel   (int | None)     Channel ID for leave messages.
+        leave_message   (str)            Leave message template.
+        leave_enabled   (bool)           Whether leave messages are enabled.
         updated_at      (datetime)       Last modification time.
     """
 
@@ -83,6 +99,12 @@ class GuildConfig:
     mod_role: Optional[int] = None
     auto_role: Optional[int] = None
     locale: str = "en"
+    welcome_channel: Optional[int] = None
+    welcome_message: str = "Welcome {member} to {server}!"
+    welcome_enabled: bool = True
+    leave_channel: Optional[int] = None
+    leave_message: str = "{member} has left {server}."
+    leave_enabled: bool = False
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
     @classmethod
@@ -106,5 +128,11 @@ class GuildConfig:
             mod_role=row["mod_role"],
             auto_role=row["auto_role"],
             locale=row["locale"],
+            welcome_channel=row.get("welcome_channel"),
+            welcome_message=row.get("welcome_message", "Welcome {member} to {server}!"),
+            welcome_enabled=bool(row.get("welcome_enabled", 1)),
+            leave_channel=row.get("leave_channel"),
+            leave_message=row.get("leave_message", "{member} has left {server}."),
+            leave_enabled=bool(row.get("leave_enabled", 0)),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )

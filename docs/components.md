@@ -51,6 +51,7 @@ All discord.ui CV2 types are also re-exported from `src.bot.components`:
 
 ```python
 from src.bot.components import (
+    # discord.ui CV2 types
     LayoutView,
     Container,
     Section,
@@ -64,11 +65,30 @@ from src.bot.components import (
     Modal,
     TextInput,
     SeparatorSpacing,
-    Paginator,
+    
+    # Kairo send helpers
     send_layout,
     edit_layout,
     followup_layout,
     send_layout_to_channel,
+    
+    # Kairo component helpers
+    Paginator,
+    ConfirmationDialog,
+    ConfirmationView,
+    MultiStepFlow,
+    Step,
+    StepBuilder,
+    ConfigPanel,
+    QuickConfigPanel,
+    ConfigOption,
+    ToggleOption,
+    TextOption,
+    NumberOption,
+    ChannelOption,
+    RoleOption,
+    SelectOption,
+    ConfigSection,
 )
 ```
 
@@ -375,3 +395,157 @@ async def show_userinfo(interaction: discord.Interaction, member: discord.Member
 - A single `LayoutView` can hold up to 40 total items across all nested components.
 - `TextDisplay` content counts toward a 4000-character limit across the whole view.
 - See the [Discord API docs](https://discord.com/developers/docs/components/overview) for the full CV2 spec.
+
+---
+
+## Kairo Component Helpers
+
+Kairo provides additional helper components beyond the native discord.ui types.
+
+---
+
+### ConfirmationDialog
+
+A reusable Yes/No confirmation dialog for destructive actions.
+
+```python
+from src.bot.components import ConfirmationDialog
+
+view = ConfirmationDialog(
+    title="Delete Message",
+    message="Are you sure you want to delete this message?",
+    confirm_label="Delete",
+    cancel_label="Cancel",
+    confirm_style=discord.ButtonStyle.danger,
+    timeout=60.0
+)
+
+# Wait for user decision
+confirmed = await view.wait_for_decision(interaction)
+if confirmed:
+    await message.delete()
+```
+
+**Properties:**
+- `title`: Dialog title
+- `message`: Confirmation message
+- `confirm_label`: Confirm button text (default: "Confirm")
+- `cancel_label`: Cancel button text (default: "Cancel")
+- `confirm_style`: Confirm button style (default: success/green)
+- `cancel_style`: Cancel button style (default: secondary/gray)
+- `timeout`: Interaction timeout in seconds (default: 120)
+- `ephemeral`: Whether dialog is ephemeral (default: True)
+
+---
+
+### MultiStepFlow
+
+A stateful multi-step flow for guided user experiences like onboarding wizards.
+
+```python
+from src.bot.components import MultiStepFlow, Step, StepBuilder
+
+# Using Step dataclass
+steps = [
+    Step(
+        title="Welcome",
+        content="Welcome to Kairo! Let's get started.",
+    ),
+    Step(
+        title="Configuration",
+        content="Configure your server settings.",
+    ),
+]
+
+flow = MultiStepFlow(steps=steps, timeout=300.0)
+await flow.start(interaction)
+
+# Or using StepBuilder for fluent interface
+builder = StepBuilder()
+steps = [
+    builder.step("Welcome", "Welcome message")
+        .skippable("Skip Setup")
+        .build(),
+    builder.step("Config", "Config message")
+        .required()
+        .build(),
+]
+```
+
+**Features:**
+- Automatic Previous/Next navigation
+- Skip button for optional steps
+- Progress tracking (Step X of Y)
+- Custom step layout builders
+- User data storage during flow
+- State persistence
+
+---
+
+### ConfigPanel
+
+A reusable configuration interface for server settings.
+
+```python
+from src.bot.components import (
+    ConfigPanel, ToggleOption, TextOption, ChannelOption, RoleOption, SelectOption
+)
+
+# Create panel with sections
+panel = ConfigPanel(
+    title="Server Configuration",
+    description="Configure your server settings.",
+)
+
+# Add sections with options
+panel.add_section("General", [
+    ToggleOption("Welcome Messages", "enable_welcome", default=True),
+    TextOption("Welcome Message", "welcome_message", 
+               placeholder="Welcome {member}!"),
+])
+
+panel.add_section("Moderation", [
+    ChannelOption("Mod Log Channel", "mod_log_channel"),
+    RoleOption("Moderator Role", "mod_role"),
+])
+
+# Set callbacks
+panel.on_save = lambda i, changes: save_to_database(i, changes)
+panel.on_cancel = lambda i: i.response.send_message("Cancelled", ephemeral=True)
+
+# Send the panel
+await panel.send(interaction)
+```
+
+**Option Types:**
+- `ToggleOption`: Boolean on/off switch
+- `TextOption`: Text input field
+- `NumberOption`: Numeric input
+- `ChannelOption`: Discord channel selector
+- `RoleOption`: Discord role selector
+- `SelectOption`: Dropdown menu with predefined choices
+
+---
+
+### QuickConfigPanel
+
+A simplified configuration panel for quick settings.
+
+```python
+from src.bot.components import QuickConfigPanel
+
+panel = QuickConfigPanel(
+    title="Server Settings",
+    options={
+        "welcome_enabled": {"type": "bool", "label": "Welcome Messages", "default": True},
+        "welcome_channel": {"type": "channel", "label": "Welcome Channel"},
+        "locale": {"type": "select", "label": "Language", 
+                   "choices": [("en", "English"), ("fr", "French")]},
+    }
+)
+
+panel.on_save = lambda i, changes: handle_save(i, changes)
+await panel.send(interaction)
+```
+
+**Option types:** `bool`, `channel`, `role`, `select`, `text` (default)

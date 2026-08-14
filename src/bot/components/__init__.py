@@ -70,6 +70,20 @@ from .panel import (
     send_layout_to_channel,
 )
 from .pagination import Paginator
+from .confirmation import ConfirmationDialog, ConfirmationView
+from .flow import MultiStepFlow, Step, StepBuilder
+from .config_panel import (
+    ConfigPanel,
+    QuickConfigPanel,
+    ConfigOption,
+    ToggleOption,
+    TextOption,
+    NumberOption,
+    ChannelOption,
+    RoleOption,
+    SelectOption,
+    ConfigSection,
+)
 
 __all__ = [
     # discord.ui CV2 types
@@ -96,4 +110,21 @@ __all__ = [
     "followup_layout",
     "send_layout_to_channel",
     "Paginator",
+    # Kairo component helpers
+    "ConfirmationDialog",
+    "ConfirmationView",
+    "MultiStepFlow",
+    "Step",
+    "StepBuilder",
+    # Configuration panel
+    "ConfigPanel",
+    "QuickConfigPanel",
+    "ConfigOption",
+    "ToggleOption",
+    "TextOption",
+    "NumberOption",
+    "ChannelOption",
+    "RoleOption",
+    "SelectOption",
+    "ConfigSection",
 ]

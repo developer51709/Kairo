@@ -19,9 +19,11 @@ Available repositories:
 from .guild import GuildRepository
 from .user import UserRepository
 from .moderation import ModerationRepository
+from .automod import AutoModRepository
 
 __all__ = [
     "GuildRepository",
     "UserRepository",
     "ModerationRepository",
+    "AutoModRepository",
 ]

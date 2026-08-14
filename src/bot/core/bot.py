@@ -48,12 +48,14 @@ class KairoBot(commands.Bot):
     Extends discord.ext.commands.Bot with:
         - config    — the loaded Config instance
         - bus       — the internal EventBus for cross-feature communication
+        - db        — the SQLite database connection
         - Structured startup / shutdown logging
         - Slash command sync helpers
 
     Attributes:
         config (Config):    Loaded configuration.
         bus    (EventBus):  Internal pub/sub event bus.
+        db     (Database):  SQLite database connection.
     """
 
     def __init__(self, config: Config) -> None:
@@ -65,6 +67,9 @@ class KairoBot(commands.Bot):
         """
         self.config: Config = config
         self.bus: EventBus = EventBus()
+        # Lazy import to avoid circular dependency
+        from ..database import Database
+        self.db: Database = Database(path=config.db_path)
 
         # Configure logging before anything else so all subsequent messages
         # are captured.
@@ -122,12 +127,19 @@ class KairoBot(commands.Bot):
 
         This is the correct place to:
             - Initialise the database connection.
+            - Run database migrations.
             - Load feature cogs.
             - Sync application (slash) commands.
 
         It runs inside the bot's event loop so async operations are safe here.
         """
         log.info("Running setup_hook...")
+
+        # Initialize database connection
+        await self.db.connect()
+        
+        # Run database migrations
+        await self.db.run_migrations()
 
         await self._load_cogs()
         await self._sync_commands()
@@ -148,6 +160,9 @@ class KairoBot(commands.Bot):
             "src.bot.features.automod.cog",
             "src.bot.features.logging.cog",
             "src.bot.features.utility.cog",
+            "src.bot.features.welcome.cog",
+            "src.bot.features.roles.cog",
+            "src.bot.features.config.cog",
         ]
 
         for module in cog_modules:
@@ -243,5 +258,6 @@ class KairoBot(commands.Bot):
         """
         log.info("Closing Kairo...")
         await self.bus.emit("bot_closing", bot=self)
+        await self.db.close()
         await super().close()
         log.info("Discord connection closed.")

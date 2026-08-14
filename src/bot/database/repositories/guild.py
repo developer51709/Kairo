@@ -120,6 +120,12 @@ class GuildRepository:
                 mod_role        = ?,
                 auto_role       = ?,
                 locale          = ?,
+                welcome_channel = ?,
+                welcome_message = ?,
+                welcome_enabled = ?,
+                leave_channel   = ?,
+                leave_message   = ?,
+                leave_enabled   = ?,
                 updated_at      = datetime('now')
             WHERE id = ?
             """,
@@ -131,6 +137,12 @@ class GuildRepository:
                 config.mod_role,
                 config.auto_role,
                 config.locale,
+                config.welcome_channel,
+                config.welcome_message,
+                int(config.welcome_enabled),
+                config.leave_channel,
+                config.leave_message,
+                int(config.leave_enabled),
                 config.id,
             ),
         )

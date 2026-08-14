@@ -33,13 +33,19 @@ Kairo/
 │   │   │   ├── text.py      ← discord.ui.TextDisplay, Separator (re-export shim)
 │   │   │   ├── interactive.py ← discord.ui.Button, Select, ActionRow, Thumbnail
 │   │   │   ├── modal.py     ← discord.ui.Modal, TextInput (re-export shim)
-│   │   │   └── pagination.py ← Paginator (LayoutView subclass)
+│   │   │   ├── pagination.py ← Paginator (LayoutView subclass)
+│   │   │   ├── confirmation.py ← ConfirmationDialog, ConfirmationView
+│   │   │   ├── flow.py      ← MultiStepFlow, Step, StepBuilder
+│   │   │   └── config_panel.py ← ConfigPanel, QuickConfigPanel, option types
 │   │   │
 │   │   └── features/        ← Independent feature modules (auto-discovered)
 │   │       ├── moderation/  ← Ban, kick, warn, cases
 │   │       ├── automod/     ← Automated rule enforcement
 │   │       ├── logging/     ← Server event logging
-│   │       └── utility/     ← Info commands and utilities
+│   │       ├── utility/     ← Info commands and utilities
+│   │       ├── welcome/     ← Welcome/leave messages and auto-roles
+│   │       ├── roles/       ← Role buttons, menus, and panels
+│   │       └── config/      ← Server configuration commands
 │   │
 │   ├── api/                 ← REST API (aiohttp)
 │   │   └── app.py           ← API application + route handlers
@@ -133,6 +139,9 @@ new feature.
 | `automod`    | Automated rule checks on messages and joins.                      |
 | `logging`    | Posts server events to configured Discord channels.               |
 | `utility`    | Info commands (/help, /userinfo, /serverinfo, /avatar, /ping).    |
+| `welcome`    | Welcome/leave messages and auto-role assignment.                 |
+| `roles`      | Role buttons, menus, panels, and manual role management.           |
+| `config`     | Server configuration commands and settings.                      |
 
 **Key principle:** Features are isolated. A feature cog imports from core,
 database, and components — but never from other feature modules directly.
