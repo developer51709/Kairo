@@ -21,7 +21,7 @@ _PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 _ENV_FILE = _PROJECT_ROOT / ".env"
 
 KAIR_VERSION = "0.1.0"
-KAIRO_AUTHOR = "Built with love by Kairo Team"
+KAIRO_AUTHOR = "Built with ♡ by Soren"
 
 
 class Colors:
@@ -41,6 +41,7 @@ class Colors:
     BRIGHT_BLUE = "\033[94m"
     BRIGHT_MAGENTA = "\033[95m"
     BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
 
 
 class Branding:

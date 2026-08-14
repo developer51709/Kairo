@@ -61,6 +61,7 @@ class Colors:
     BRIGHT_BLUE = "\033[94m"
     BRIGHT_MAGENTA = "\033[95m"
     BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
 
 
 class Branding:
@@ -96,11 +97,11 @@ class Branding:
         if sys.stdout.isatty():
             print("\n" + "=" * 70)
             print(f"{Colors.BRIGHT_CYAN}{Branding.get_logo()}{Colors.RESET}")
-            print(f"{Colors.BOLD}{Colors.BRIGHT_BLUE}Kairo v{Branding.KAIRO_VERSION}{Colors.RESET} {Colors.DIM}- A modern, self-hostable Discord platform{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.BRIGHT_BLUE}Kairo v{Branding.KAIRO_VERSION}{Colors.RESET} {Colors.DIM}- A modern, self-hostable Discord bot{Colors.RESET}")
             print("=" * 70)
         else:
             print("\n" + "=" * 60)
-            print("  Kairo - A modern, self-hostable Discord platform")
+            print("  Kairo - A modern, self-hostable Discord bot")
             print(f"  v{Branding.KAIRO_VERSION}")
             print("=" * 60)
     
@@ -182,7 +183,7 @@ async def main() -> None:
 
     try:
         config = Config()
-        Branding.print_success(f"Configuration loaded from {config.env_file}")
+        Branding.print_success(f"Configuration loaded from environment variables")
     except ConfigError as e:
         print(f"\n{Colors.BRIGHT_RED if sys.stdout.isatty() else ''}x{Colors.RESET if sys.stdout.isatty() else ''} Configuration error:\n{e}\n", file=sys.stderr)
         print("Run 'python src/setup.py' to configure Kairo interactively.", file=sys.stderr)
@@ -227,7 +228,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     try:
-        Branding.print_header()
         asyncio.run(main())
     except KeyboardInterrupt:
         if sys.stdout.isatty():
