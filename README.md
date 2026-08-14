@@ -584,7 +584,6 @@ Kairo will be developed incrementally.
 * [ ] Onboarding wizard in dashboard
 * [ ] Configuration pages for all features
 * [ ] Moderation case browser
-* [ ] Application emoji management page
 * [ ] Responsive mobile layout
 
 ## Phase 7 — Deployment
