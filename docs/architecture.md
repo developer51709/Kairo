@@ -27,15 +27,15 @@ Kairo/
 │   │   │   ├── repositories/     ← Typed data access objects
 │   │   │   └── migrations/       ← SQL migration files + runner
 │   │   │
-│   │   ├── components/      ← Discord Components V2 abstractions
-│   │   │   ├── panel.py     ← High-level Panel builder
-│   │   │   ├── container.py ← Container + Section
-│   │   │   ├── text.py      ← Text + Separator
-│   │   │   ├── interactive.py ← Button, SelectMenu, ActionRow
-│   │   │   ├── modal.py     ← Modal dialog builder
-│   │   │   └── pagination.py ← Multi-page interface
+│   │   ├── components/      ← Discord Components V2 (re-exports discord.ui + helpers)
+│   │   │   ├── panel.py     ← send_layout / edit_layout / followup_layout helpers
+│   │   │   ├── container.py ← discord.ui.Container, Section (re-export shim)
+│   │   │   ├── text.py      ← discord.ui.TextDisplay, Separator (re-export shim)
+│   │   │   ├── interactive.py ← discord.ui.Button, Select, ActionRow, Thumbnail
+│   │   │   ├── modal.py     ← discord.ui.Modal, TextInput (re-export shim)
+│   │   │   └── pagination.py ← Paginator (LayoutView subclass)
 │   │   │
-│   │   └── features/        ← Independent feature modules
+│   │   └── features/        ← Independent feature modules (auto-discovered)
 │   │       ├── moderation/  ← Ban, kick, warn, cases
 │   │       ├── automod/     ← Automated rule enforcement
 │   │       ├── logging/     ← Server event logging
@@ -91,20 +91,22 @@ This keeps SQL centralised, auditable, and testable.
 
 ### 3. Components (`src/bot/components/`)
 
-Abstractions over Discord Components V2. Features use these instead of
-constructing raw component dicts.
+Re-exports all Discord Components V2 types from `discord.ui` and provides
+Kairo-specific send helpers. Features use `discord.ui` types directly —
+there is no custom component abstraction layer.
 
-| Component      | Responsibility                                                    |
-|----------------|-------------------------------------------------------------------|
-| `panel.py`     | `Panel` — owns containers and sends/edits interaction responses.  |
-| `container.py` | `Container`, `Section` — top-level layout blocks.                 |
-| `text.py`      | `Text`, `Separator` — content and spacing.                        |
-| `interactive.py`| `Button`, `SelectMenu`, `ActionRow` — interactive elements.      |
-| `modal.py`     | `Modal`, `TextInput` — pop-up form dialogs.                       |
-| `pagination.py`| `Paginator` — multi-page navigation interface.                    |
+| Module          | Responsibility                                                          |
+|-----------------|-------------------------------------------------------------------------|
+| `panel.py`      | `send_layout`, `edit_layout`, `followup_layout`, `send_layout_to_channel` — thin async helpers that pass a `LayoutView` as `view=` to discord.py. |
+| `container.py`  | Re-exports `discord.ui.Container`, `Section`.                           |
+| `text.py`       | Re-exports `discord.ui.TextDisplay`, `Separator`.                       |
+| `interactive.py`| Re-exports `discord.ui.Button`, `Select`, `ActionRow`, `Thumbnail`.     |
+| `modal.py`      | Re-exports `discord.ui.Modal`, `TextInput`.                             |
+| `pagination.py` | `Paginator` — `LayoutView` subclass with Prev/Next button navigation.   |
 
-**Key principle:** Components are stateless value objects. They describe
-*what* to render, not *how* to send it. Panel handles the sending.
+**Key principle:** All CV2 messages are sent via `view=` using a
+`discord.ui.LayoutView`. The send helpers wrap this pattern and add logging.
+Features build `LayoutView` instances directly from `discord.ui` types.
 
 ---
 
@@ -120,12 +122,17 @@ features/<name>/
 └── service.py    ← Business logic (no discord.py dependencies)
 ```
 
+Features are **auto-discovered** at startup. The bot scans `src/bot/features/`
+and loads any subdirectory that is a Python package (has `__init__.py`) and
+contains a `cog.py`. No registration in `bot.py` is required when adding a
+new feature.
+
 | Feature      | Responsibility                                                    |
 |--------------|-------------------------------------------------------------------|
 | `moderation` | Ban, kick, timeout, warn, case management.                        |
 | `automod`    | Automated rule checks on messages and joins.                      |
 | `logging`    | Posts server events to configured Discord channels.               |
-| `utility`    | Info commands (userinfo, serverinfo, avatar, ping).               |
+| `utility`    | Info commands (/help, /userinfo, /serverinfo, /avatar, /ping).    |
 
 **Key principle:** Features are isolated. A feature cog imports from core,
 database, and components — but never from other feature modules directly.
@@ -167,13 +174,13 @@ Discord → discord.py → ModerationCog.ban()
                             ↓
                     ModerationService.ban()
                             ↓
-                    discord.Member.ban()    ← Discord API
+                    discord.Member.ban()            ← Discord API
                             ↓
                     ModerationRepository.create_case()
                             ↓
-                    Database.execute()      ← SQLite
+                    Database.execute()              ← SQLite
                             ↓
-                    Panel.send(interaction) ← Discord interaction response
+                    send_layout(interaction, view)  ← discord.ui.LayoutView response
 ```
 
 ### Dashboard Configuration Update
@@ -212,7 +219,8 @@ cross-feature communication.
 
 ## Adding a New Feature
 
-See [features.md](features.md) for a step-by-step guide.
+See [features.md](features.md) for a step-by-step guide. No changes to `bot.py`
+are required — new features are discovered automatically at startup.
 
 ## Database Changes
 
@@ -220,4 +228,5 @@ See [database.md](database.md) for how to add models, repositories, and migratio
 
 ## Components V2
 
-See [components.md](components.md) for how to use the component abstractions.
+See [components.md](components.md) for how to use `discord.ui.LayoutView` and the
+Kairo send helpers.

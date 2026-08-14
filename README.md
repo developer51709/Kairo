@@ -22,7 +22,7 @@ The project is being designed from the ground up around **Discord Components V2*
 
 Kairo aims to be:
 
-* 🧩 **Modular** — features are independently organized and extensible
+* 🧩 **Modular** — features are independently organized and auto-discovered
 * 🎨 **Modern** — Components V2-first Discord interfaces
 * 🌐 **Self-hostable** — run Kairo on your own hardware or server
 * 💾 **Persistent** — configuration stored reliably in SQLite
@@ -31,6 +31,8 @@ Kairo aims to be:
 * 📚 **Well documented** — extensive documentation for users and developers
 * 🚀 **Easy to deploy** — local, Docker, VPS, and tunnel-based deployment
 * 🛠️ **Developer friendly** — clean architecture and clear extension points
+* 🎭 **Customizable** — application emojis, custom branding, per-server configuration
+* 🤝 **Onboarding-ready** — interactive guild setup wizard on first install
 
 ---
 
@@ -38,22 +40,24 @@ Kairo aims to be:
 
 ### 🤖 Discord Bot
 
-Kairo will provide a large collection of server management and community features.
-
 #### Moderation
 
-* [ ] Ban
-* [ ] Kick
-* [ ] Timeout
-* [ ] Warn system
-* [ ] Warning history
-* [ ] Moderation cases
-* [ ] Case management
+* [x] Ban
+* [x] Kick
+* [x] Timeout
+* [x] Warn system
+* [x] Warning history
+* [x] Moderation cases
+* [x] Case management
 * [ ] Bulk message deletion
 * [ ] Moderation logs
 * [ ] Configurable punishment actions
-* [ ] Moderator permission checks
+* [x] Moderator permission checks
 * [ ] Moderation audit history
+* [ ] Temporary bans (auto-unban)
+* [ ] Slow mode management
+* [ ] Note system (staff-only case notes)
+* [ ] Appeal system
 
 #### AutoMod
 
@@ -65,101 +69,183 @@ Kairo will provide a large collection of server management and community feature
 * [ ] Word filtering
 * [ ] Caps filtering
 * [ ] Raid protection
-* [ ] Configurable actions
+* [ ] Configurable actions (warn / timeout / kick / ban)
 * [ ] AutoMod logging
 * [ ] Per-channel configuration
 * [ ] Per-role exemptions
+* [ ] Regex rule support
+* [ ] Mass join detection
+* [ ] Phishing link detection
+* [ ] New account age filtering
 
 #### Server Management
 
-* [ ] Welcome messages
+* [ ] Welcome messages (Components V2, configurable)
 * [ ] Leave messages
-* [ ] Auto roles
-* [ ] Verification system
+* [ ] Auto roles on join
+* [ ] Auto roles on verify
+* [ ] Verification system (button, CAPTCHA, rules accept)
 * [ ] Reaction roles
 * [ ] Button roles
-* [ ] Server configuration
+* [ ] Select menu roles
+* [ ] Role menus (grouped role pickers)
+* [ ] Server configuration panel
 * [ ] Custom commands
-* [ ] Channel management
-* [ ] Role management
+* [ ] Custom command variables (user, server, time)
+* [ ] Channel management utilities
+* [ ] Role management utilities
 * [ ] Server information
+
+#### Onboarding
+
+* [ ] Interactive guild setup wizard (Components V2 multi-step)
+* [ ] First-run detection on guild join
+* [ ] Setup progress tracking
+* [ ] Channel creation assistant
+* [ ] Role creation assistant
+* [ ] Feature enable/disable during setup
+* [ ] Setup summary and confirmation panel
+* [ ] Re-run setup at any time via `/setup`
+* [ ] Skip and configure later for any step
 
 #### Community
 
-* [ ] Tickets
-* [ ] Suggestions
-* [ ] Giveaways
-* [ ] Polls
+* [ ] Tickets (thread-based, button to open)
+* [ ] Ticket transcripts
+* [ ] Ticket categories and routing
+* [ ] Suggestions (vote panel, status updates)
+* [ ] Giveaways (enter/leave, re-roll, winners)
+* [ ] Polls (multi-choice, timed, results panel)
 * [ ] Starboard
-* [ ] Leveling
-* [ ] Reminders
-* [ ] Custom responses
-* [ ] Community statistics
+* [ ] Leveling (XP, rank card, leaderboard)
+* [ ] Level roles
+* [ ] Reminders (personal, channel)
+* [ ] Custom responses (trigger → reply)
+* [ ] Community statistics dashboard
+* [ ] Server milestones
+* [ ] Reaction menus
 
 #### Utility
 
-* [ ] User information
-* [ ] Server information
+* [x] Help command (Components V2, category filter)
+* [x] User information
+* [x] Server information
+* [x] Avatar viewer
+* [x] Bot information
+* [x] Ping / latency
 * [ ] Role information
 * [ ] Channel information
-* [ ] Avatar viewer
 * [ ] Permissions viewer
-* [ ] Bot information
 * [ ] Server statistics
 * [ ] Embed builder
 * [ ] Message utilities
+* [ ] Snowflake decoder
+* [ ] Colour preview
+* [ ] Timestamp generator
+* [ ] User banner viewer
+
+#### Logging
+
+* [ ] Message edit logs
+* [ ] Message delete logs
+* [ ] Member join / leave logs
+* [ ] Member ban / unban logs
+* [ ] Member role change logs
+* [ ] Channel create / edit / delete logs
+* [ ] Role create / edit / delete logs
+* [ ] Voice channel join / leave / move logs
+* [ ] Invite create / delete logs
+* [ ] Server update logs
+* [ ] Per-event channel routing
+* [ ] Log ignore rules (channels, roles, users)
+* [ ] Log formatting templates
+
+#### Fun
+
+* [ ] 8-ball
+* [ ] Coinflip
+* [ ] Dice roller
+* [ ] Random quote
+* [ ] Would you rather
+* [ ] Trivia
+* [ ] Mini-games
+
+---
+
+# 🎨 Customization
+
+Kairo is designed to be deeply customizable per server.
+
+### Application Emojis
+
+* [ ] Application emoji registry — Kairo registers its own emoji set with Discord on startup
+* [ ] Auto-registration of missing emojis at boot
+* [ ] Emoji fallback to Unicode when application emojis are unavailable
+* [ ] Per-guild custom emoji overrides
+* [ ] Emoji configuration via dashboard
+
+### Branding
+
+* [ ] Custom bot name per guild (nickname)
+* [ ] Custom embed accent colour per guild
+* [ ] Custom footer text
+* [ ] Custom status messages (rotating or static)
+* [ ] Custom command prefix per guild
+
+### Per-Server Configuration
+
+* [ ] Feature enable/disable per guild
+* [ ] Language / locale selection
+* [ ] Timezone setting (for timed features)
+* [ ] Command cooldowns per guild
+* [ ] Per-channel command restrictions
+* [ ] Per-role command restrictions
 
 ---
 
 # 🧱 Discord Components V2
 
-Components V2 will be one of Kairo's defining features.
+Components V2 is a core part of Kairo's Discord interface layer.
 
-Rather than relying primarily on traditional embeds and views, Kairo will provide reusable abstractions for creating modern Discord interfaces.
+Kairo uses **discord.py's native CV2 system** (`discord.ui.LayoutView`) directly rather than building a custom abstraction on top of it. All interactive and layout components are provided by discord.py 2.6+ out of the box.
 
-Planned components include:
+Implemented components:
 
-* [ ] Containers
-* [ ] Sections
-* [ ] Text displays
-* [ ] Separators
-* [ ] Buttons
-* [ ] Select menus
-* [ ] Action rows
+* [x] Containers (`discord.ui.Container`)
+* [x] Sections (`discord.ui.Section`)
+* [x] Text displays (`discord.ui.TextDisplay`)
+* [x] Separators (`discord.ui.Separator`)
+* [x] Buttons (`discord.ui.Button`)
+* [x] Select menus (`discord.ui.Select` and variants)
+* [x] Action rows (`discord.ui.ActionRow`)
+* [x] Thumbnails (`discord.ui.Thumbnail`)
+* [x] Modals (`discord.ui.Modal`)
+* [x] Pagination (`Paginator` — Kairo helper built on `LayoutView`)
 * [ ] Media galleries
-* [ ] Thumbnails
-* [ ] Modals
-* [ ] Pagination
 * [ ] Confirmation dialogs
 * [ ] Interactive configuration panels
-* [ ] Reusable UI layouts
-* [ ] Stateful interfaces
+* [ ] Stateful multi-step flows
 
-The goal is to make complex Discord interfaces easy to build and maintain.
+Views are sent via `view=` to `interaction.response.send_message()`, which is the correct discord.py CV2 API. The `src/bot/components/` package re-exports all discord.ui CV2 types and provides thin send helpers (`send_layout`, `edit_layout`, `followup_layout`, `send_layout_to_channel`).
 
-Example of the intended API:
+Example:
 
 ```python
-panel = Panel(
-    Container(
-        Text("# Server Configuration"),
-        Separator(),
-        Text("Manage your server settings below."),
-        ActionRow(
-            Button(
-                label="Moderation",
-                custom_id="config:moderation",
-            ),
-            Button(
-                label="Logging",
-                custom_id="config:logging",
-            ),
-        ),
-    )
-)
-```
+import discord
+from src.bot.components import send_layout
 
-The exact API is subject to change during development.
+view = discord.ui.LayoutView()
+view.add_item(discord.ui.Container(
+    discord.ui.TextDisplay("# Server Configuration"),
+    discord.ui.Separator(visible=True),
+    discord.ui.TextDisplay("Manage your server settings below."),
+    discord.ui.ActionRow(
+        discord.ui.Button(label="Moderation", custom_id="config:moderation"),
+        discord.ui.Button(label="Logging", custom_id="config:logging"),
+    ),
+))
+await send_layout(interaction, view, ephemeral=True)
+```
 
 ---
 
@@ -176,16 +262,24 @@ The dashboard will provide a centralized interface for managing Kairo installati
 * [ ] Guild selector
 * [ ] Guild permission validation
 * [ ] Bot installation flow
+* [ ] Interactive onboarding wizard
+* [ ] Server overview (member count, activity, health)
 * [ ] Server configuration
 * [ ] Moderation configuration
 * [ ] AutoMod configuration
 * [ ] Logging configuration
-* [ ] Welcome configuration
+* [ ] Welcome / leave configuration
 * [ ] Ticket configuration
-* [ ] Giveaway configuration
-* [ ] Reaction/button roles
-* [ ] Custom commands
-* [ ] Audit logs
+* [ ] Giveaway management
+* [ ] Reaction / button roles editor
+* [ ] Role menu builder
+* [ ] Custom commands editor
+* [ ] Custom responses editor
+* [ ] Leveling configuration
+* [ ] Application emoji management
+* [ ] Branding configuration
+* [ ] Audit logs viewer
+* [ ] Moderation case browser
 * [ ] Bot status
 * [ ] System status
 * [ ] Database status
@@ -210,7 +304,7 @@ Planned functionality includes:
 * [ ] Guild permission verification
 * [ ] Bot presence verification
 * [ ] Secure API authorization
-* [ ] Logout/session invalidation
+* [ ] Logout / session invalidation
 
 Kairo will never assume that a user has permission to manage a server simply because they can authenticate with Discord.
 
@@ -225,14 +319,18 @@ The database layer will be designed around repositories and services rather than
 Planned capabilities include:
 
 * [ ] Guild configuration
-* [ ] User configuration
+* [ ] User profiles
 * [ ] Moderation cases
 * [ ] Warnings
 * [ ] AutoMod configuration
-* [ ] Ticket data
+* [ ] Ticket data and transcripts
 * [ ] Giveaway data
 * [ ] Logging configuration
+* [ ] Leveling / XP data
 * [ ] Custom commands
+* [ ] Custom responses
+* [ ] Application emoji registry
+* [ ] Onboarding state
 * [ ] Migration system
 * [ ] Database backups
 * [ ] Database health checks
@@ -243,11 +341,7 @@ The architecture will also aim to make migration to another database backend eas
 
 # 🧩 Modular Architecture
 
-Kairo will be designed as a modular platform rather than one giant bot file.
-
-Features will be separated into independently maintained modules.
-
-A planned architecture may look similar to:
+Kairo is designed as a modular platform. Features are auto-discovered at startup — adding a new feature only requires creating a directory with `__init__.py` and `cog.py`.
 
 ```text
 Kairo
@@ -255,7 +349,7 @@ Kairo
 ├── Core
 │   ├── Configuration
 │   ├── Logging
-│   ├── Events
+│   ├── Events (internal pub/sub bus)
 │   └── Lifecycle
 │
 ├── Database
@@ -264,24 +358,28 @@ Kairo
 │   └── Migrations
 │
 ├── Components
-│   ├── Layouts
-│   ├── Views
-│   ├── Modals
-│   └── Interactive Components
+│   ├── LayoutView send helpers
+│   ├── Paginator
+│   └── discord.ui re-exports
 │
-├── Features
+├── Features (auto-discovered)
 │   ├── Moderation
 │   ├── AutoMod
+│   ├── Logging
+│   ├── Utility
+│   ├── Onboarding
 │   ├── Tickets
 │   ├── Giveaways
+│   ├── Leveling
+│   ├── Roles
+│   ├── Welcome
+│   ├── Fun
 │   └── ...
 │
 ├── API
 │
 └── Dashboard
 ```
-
-This structure may change as development progresses.
 
 ---
 
@@ -298,6 +396,7 @@ A future plugin could add:
 * API endpoints
 * Background tasks
 * Event listeners
+* Application emojis
 * Configuration options
 
 The intended result is that developers can extend Kairo without modifying its core.
@@ -342,12 +441,12 @@ Planned documentation includes:
 
 ### Getting Started
 
-* [ ] Installation
-* [ ] Discord application setup
-* [ ] Bot token configuration
-* [ ] Environment variables
+* [x] Installation
+* [x] Discord application setup
+* [x] Bot token configuration
+* [x] Environment variables
 * [ ] Database initialization
-* [ ] First launch
+* [x] First launch
 
 ### Self Hosting
 
@@ -367,6 +466,7 @@ Planned documentation includes:
 ### Administration
 
 * [ ] Dashboard guide
+* [ ] Guild onboarding wizard
 * [ ] Server configuration
 * [ ] Permissions
 * [ ] Security
@@ -375,13 +475,14 @@ Planned documentation includes:
 
 ### Developers
 
-* [ ] Architecture
-* [ ] Components V2
-* [ ] Creating features
+* [x] Architecture
+* [x] Components V2
+* [x] Creating features (auto-discovery)
 * [ ] Creating plugins
-* [ ] Database repositories
+* [x] Database repositories
 * [ ] API development
 * [ ] Dashboard development
+* [ ] Application emojis
 * [ ] Testing
 * [ ] Contributing
 
@@ -389,19 +490,17 @@ Planned documentation includes:
 
 # 🛠️ Technology
 
-Kairo is planned around the following technologies:
-
-| Technology            | Purpose                  |
-| --------------------- | ------------------------ |
-| **Python**            | Discord bot backend      |
-| **discord.py 2.7.1**  | Discord API library      |
-| **SQLite**            | Persistent storage       |
-| **Vite**              | Dashboard tooling        |
-| **Discord OAuth2**    | Dashboard authentication |
-| **Docker**            | Containerized deployment |
-| **Cloudflare Tunnel** | Optional tunneling       |
-| **ngrok**             | Optional tunneling       |
-| **Localtonet**        | Optional tunneling       |
+| Technology            | Purpose                          |
+| --------------------- | -------------------------------- |
+| **Python**            | Discord bot backend              |
+| **discord.py 2.7.1**  | Discord API library              |
+| **SQLite**            | Persistent storage               |
+| **Vite**              | Dashboard tooling                |
+| **Discord OAuth2**    | Dashboard authentication         |
+| **Docker**            | Containerized deployment         |
+| **Cloudflare Tunnel** | Optional tunneling               |
+| **ngrok**             | Optional tunneling               |
+| **Localtonet**        | Optional tunneling               |
 
 Additional technologies may be introduced as development progresses.
 
@@ -413,82 +512,135 @@ Kairo will be developed incrementally.
 
 ## Phase 1 — Foundation
 
-* [ ] Repository structure
-* [ ] Configuration system
-* [ ] Logging system
-* [ ] Discord bot initialization
+* [x] Repository structure
+* [x] Configuration system
+* [x] Logging system
+* [x] Discord bot initialization
+* [x] Auto-discovery cog loader
 * [ ] SQLite database
 * [ ] Database migrations
-* [ ] Basic error handling
-* [ ] Development environment
+* [x] Basic error handling
+* [x] Development environment
 
 ## Phase 2 — Components V2
 
-* [ ] Component abstractions
-* [ ] Layout system
-* [ ] Reusable UI components
-* [ ] Interaction handling
-* [ ] Pagination
-* [ ] Modals
-* [ ] Configuration panels
+* [x] Native discord.ui CV2 integration (LayoutView)
+* [x] Send helpers (send_layout, edit_layout, followup_layout)
+* [x] Reusable UI components (Container, Section, TextDisplay, Separator, Thumbnail)
+* [x] Interaction handling
+* [x] Pagination (Paginator built on LayoutView)
+* [x] Modals (discord.ui.Modal)
+* [ ] Confirmation dialog helper
+* [ ] Interactive multi-step flow helper
+* [ ] Configuration panel helper
 
 ## Phase 3 — Core Features
 
-* [ ] Moderation
-* [ ] AutoMod
-* [ ] Logging
-* [ ] Server configuration
-* [ ] Utility commands
-* [ ] Community features
+* [x] Moderation (ban, kick, timeout, warn, history, case)
+* [x] AutoMod (scaffold — rule engine Phase 3)
+* [x] Logging (scaffold — channel output Phase 3)
+* [x] Utility commands (/help, /ping, /botinfo, /userinfo, /serverinfo, /avatar)
+* [ ] Full moderation logging to channels
+* [ ] AutoMod rule engine (spam, links, words, mentions)
+* [ ] Welcome / leave messages
+* [ ] Auto roles
+* [ ] Button / select menu roles
+* [ ] Server configuration system
 
-## Phase 4 — Dashboard
+## Phase 4 — Onboarding & Customization
 
-* [ ] Vite application
-* [ ] Dark UI
-* [ ] Discord OAuth2
-* [ ] API
-* [ ] Guild management
-* [ ] Configuration pages
-* [ ] Dashboard authentication
+* [ ] Interactive guild setup wizard (/setup — multi-step CV2 flow)
+* [ ] First-run detection on guild join
+* [ ] Application emoji registry and auto-registration at startup
+* [ ] Emoji fallback system (Unicode when application emojis unavailable)
+* [ ] Per-guild branding (accent colour, footer, status)
+* [ ] Per-guild feature enable/disable
+* [ ] Per-guild language / timezone
+* [ ] Custom command prefix per guild
 
-## Phase 5 — Deployment
+## Phase 5 — Community Features
 
-* [ ] Docker
-* [ ] Local deployment
+* [ ] Tickets (thread-based, CV2 open panel)
+* [ ] Ticket transcripts and routing
+* [ ] Suggestions (CV2 vote panel, status workflow)
+* [ ] Giveaways (enter / leave / re-roll)
+* [ ] Polls (timed, multi-choice, live results)
+* [ ] Starboard
+* [ ] Leveling (XP, rank cards, leaderboard)
+* [ ] Level roles
+* [ ] Reminders
+* [ ] Custom responses
+* [ ] Fun commands
+
+## Phase 6 — Dashboard
+
+* [ ] Vite application scaffold
+* [ ] Dark theme UI
+* [ ] Discord OAuth2 login
+* [ ] Guild selector
+* [ ] Guild permission validation
+* [ ] API (aiohttp, auth middleware)
+* [ ] Server overview page
+* [ ] Onboarding wizard in dashboard
+* [ ] Configuration pages for all features
+* [ ] Moderation case browser
+* [ ] Application emoji management page
+* [ ] Responsive mobile layout
+
+## Phase 7 — Deployment
+
+* [ ] Docker and docker-compose
+* [ ] Local deployment guide
 * [ ] VPS documentation
 * [ ] Cloudflare Tunnel integration
 * [ ] ngrok integration
 * [ ] Localtonet integration
+* [ ] Reverse proxy configuration (Nginx, Caddy)
 
-## Phase 6 — Extensibility
+## Phase 8 — Extensibility
 
 * [ ] Plugin architecture
 * [ ] Plugin API
+* [ ] Plugin lifecycle (load / unload / reload)
+* [ ] Plugin database model registration
+* [ ] Plugin dashboard page registration
 * [ ] Developer documentation
 * [ ] Plugin examples
-* [ ] Extension lifecycle
+* [ ] Plugin registry / discovery
 
-## Phase 7 — Production Readiness
+## Phase 9 — Production Readiness
 
-* [ ] Automated testing
+* [ ] Automated test suite
 * [ ] Security audit
-* [ ] Performance improvements
-* [ ] Backup tooling
+* [ ] Performance profiling and improvements
+* [ ] Database backup tooling
 * [ ] Migration tooling
+* [ ] Rate limit handling and backoff
+* [ ] Health check endpoints
 * [ ] Comprehensive documentation
-* [ ] Stable release
+* [ ] Stable release (v1.0)
 
 ---
 
 # 📊 Project Status
 
-> 🚧 **Early Development**
+> 🚧 **Early Development** — Phases 1–3 in progress
 
-Kairo is currently being designed and developed.
+| Phase                        | Status         |
+|------------------------------|----------------|
+| Phase 1 — Foundation         | ✅ Mostly done  |
+| Phase 2 — Components V2      | ✅ Mostly done  |
+| Phase 3 — Core Features      | 🔄 In progress  |
+| Phase 4 — Onboarding         | 📋 Planned      |
+| Phase 5 — Community Features | 📋 Planned      |
+| Phase 6 — Dashboard          | 📋 Planned      |
+| Phase 7 — Deployment         | 📋 Planned      |
+| Phase 8 — Extensibility      | 📋 Planned      |
+| Phase 9 — Production Ready   | 📋 Planned      |
 
-Expect breaking changes, incomplete features, architectural changes, and unfinished documentation during early development.
+Expect breaking changes, incomplete features, and unfinished documentation during early development.
 
-The roadmap represents the **current direction of the project**, not a guarantee that every planned feature will be implemented exactly as described.
+The roadmap represents the **current direction of the project**, not a guarantee that every feature will be implemented exactly as described.
 
 ---
 
@@ -499,7 +651,7 @@ Contributions will be welcome once the core architecture has stabilized.
 Potential contribution areas include:
 
 * Discord features
-* Components V2
+* Components V2 interfaces
 * Dashboard development
 * Documentation
 * Testing
@@ -548,4 +700,3 @@ If Kairo succeeds, installing the project should feel less like assembling a col
 Built with Python, Discord Components V2, and a lot of ambition.
 
 **More coming soon.**
-

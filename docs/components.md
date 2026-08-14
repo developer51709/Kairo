@@ -1,8 +1,10 @@
 # Components V2
 
-Kairo uses Discord Components V2 for all interactive Discord interfaces.
-Rather than constructing raw component dicts everywhere, Kairo provides a
-clean abstraction layer in `src/bot/components/`.
+Kairo uses Discord Components V2 for all interactive Discord interfaces,
+built directly on **discord.py's native `discord.ui.LayoutView` system**.
+
+There is no custom component abstraction — Kairo uses `discord.ui` types
+directly and provides a small set of send helpers in `src/bot/components/`.
 
 ---
 
@@ -12,311 +14,364 @@ Discord Components V2 is a message format where messages are built from
 structured component objects (containers, sections, buttons, text) instead
 of traditional embeds. It produces richer, more structured layouts.
 
-Components V2 requires the `IS_COMPONENTS_V2` message flag (`1 << 15`) and
-is only available for bot accounts with the appropriate access.
+discord.py 2.6+ provides full native support through `discord.ui.LayoutView`
+and its associated component classes.
 
 ---
 
 ## Component Hierarchy
 
-A Components V2 message is structured as:
+A Components V2 message uses a `LayoutView` as the top-level container:
 
 ```
-Panel                          ← Kairo: owns all containers; handles sending
-└── Container                  ← Discord type 17: top-level block
-    ├── Text                   ← Discord type 10: markdown text
-    ├── Separator              ← Discord type 14: visual spacing / divider
-    ├── Section                ← Discord type 9: group with optional thumbnail
-    │   └── Text
-    └── ActionRow              ← Discord type 1: holds interactive components
-        ├── Button             ← Discord type 2
-        └── SelectMenu         ← Discord type 3
+LayoutView                     ← Passed as view= to send_message()
+└── Container                  ← discord.ui.Container: top-level block
+    ├── TextDisplay            ← discord.ui.TextDisplay: markdown text
+    ├── Separator              ← discord.ui.Separator: spacing / divider
+    ├── Section                ← discord.ui.Section: group + accessory
+    │   ├── TextDisplay
+    │   └── (accessory) Thumbnail / Button
+    └── ActionRow              ← discord.ui.ActionRow: holds interactive items
+        ├── Button             ← discord.ui.Button
+        └── Select             ← discord.ui.Select (and variants)
 ```
 
-A message can have multiple Containers inside one Panel.
+A `LayoutView` can hold multiple top-level `Container` items.
 
 ---
 
 ## Quick Reference
 
 ```python
+import discord
+from src.bot.components import send_layout, edit_layout, followup_layout, send_layout_to_channel
+```
+
+All discord.ui CV2 types are also re-exported from `src.bot.components`:
+
+```python
 from src.bot.components import (
-    Panel, Container, Section,
-    Text, Separator,
-    Button, ButtonStyle, SelectMenu, SelectOption, ActionRow,
-    Modal, TextInput, TextInputStyle,
+    LayoutView,
+    Container,
+    Section,
+    TextDisplay,
+    Separator,
+    Thumbnail,
+    ActionRow,
+    Button,
+    ButtonStyle,
+    Select,
+    Modal,
+    TextInput,
+    SeparatorSpacing,
     Paginator,
+    send_layout,
+    edit_layout,
+    followup_layout,
+    send_layout_to_channel,
 )
 ```
 
 ---
 
-## Panel
+## Sending a LayoutView
 
-`Panel` is the main entry point. It wraps one or more `Container` objects
-and handles sending to Discord.
+All CV2 messages are sent by passing a `LayoutView` as the `view=` argument.
+The Kairo send helpers wrap this pattern and handle logging.
 
 ```python
-panel = Panel(
-    Container(
-        Text("Hello world!"),
-    )
-)
+import discord
+from src.bot.components import send_layout
+
+view = discord.ui.LayoutView()
+view.add_item(discord.ui.Container(
+    discord.ui.TextDisplay("Hello, world!"),
+))
 
 # Send as an interaction response
-await panel.send(interaction)
+await send_layout(interaction, view, ephemeral=True)
 
 # Edit the existing interaction response
-await panel.edit(interaction)
+await edit_layout(interaction, view)
 
 # Send as a followup after deferring
-await panel.followup(interaction)
+await followup_layout(interaction, view, ephemeral=True)
 
-# Send to a channel directly (not as interaction response)
-message = await panel.send_to_channel(channel)
+# Send to a channel directly (not an interaction response)
+message = await send_layout_to_channel(channel, view)
 ```
 
-**Ephemeral panels** (visible only to the invoking user):
+---
+
+## LayoutView
+
+`discord.ui.LayoutView` is the top-level class for CV2 messages.
 
 ```python
-panel = Panel(Container(Text("Only you can see this.")), ephemeral=True)
-await panel.send(interaction)
+view = discord.ui.LayoutView()
+view.add_item(discord.ui.Container(...))
+view.add_item(discord.ui.Container(...))
+await send_layout(interaction, view, ephemeral=True)
+```
+
+You can also subclass it and declare items as class attributes (useful for
+static layouts or views with persistent button callbacks):
+
+```python
+class MyView(discord.ui.LayoutView):
+    container = discord.ui.Container(
+        discord.ui.TextDisplay("# Hello"),
+    )
 ```
 
 ---
 
 ## Container
 
-Top-level component block. Can have an optional left-side accent colour.
+Top-level layout block. Can contain `TextDisplay`, `Separator`, `Section`,
+`ActionRow`, and `MediaGallery` items. Optional accent colour bar on the left.
 
 ```python
-Container(
-    Text("Content goes here"),
-    accent_colour=0x5865F2,   # Discord blurple
+discord.ui.Container(
+    discord.ui.TextDisplay("Content goes here"),
+    accent_colour=0x5865F2,   # Discord blurple — optional
 )
 ```
 
-Add components after construction:
+Add items after construction:
 
 ```python
-container = Container()
-container.add(Text("Line 1"), Text("Line 2"))
+container = discord.ui.Container()
+container.add_item(discord.ui.TextDisplay("Line 1"))
+container.add_item(discord.ui.TextDisplay("Line 2"))
 ```
 
 ---
 
-## Section
-
-Groups content with an optional right-side thumbnail image.
-
-```python
-Section(
-    Text("## Alice"),
-    Text("Joined 3 months ago"),
-    thumbnail_url="https://cdn.discordapp.com/avatars/.../avatar.png",
-    thumbnail_alt="Alice's avatar",
-)
-```
-
----
-
-## Text
+## TextDisplay
 
 Renders markdown-formatted content. Supports all standard Discord markdown.
 
 ```python
-Text("# Main Heading")
-Text("**Bold**, *italic*, `code`, > blockquote")
-Text("- Bullet\n- List")
+discord.ui.TextDisplay("# Main Heading")
+discord.ui.TextDisplay("**Bold**, *italic*, `code`, > blockquote")
+discord.ui.TextDisplay("- Bullet\n- List")
 ```
 
 ---
 
 ## Separator
 
-Adds visual spacing between components.
+Adds visual spacing between components. The `visible` parameter controls
+whether a visible horizontal line is rendered.
 
 ```python
-Separator()                              # Small space
-Separator(divider=True)                  # Visible horizontal line
-Separator(divider=True, spacing="large") # Line with more space
+discord.ui.Separator()                                           # Small space, no line
+discord.ui.Separator(visible=True)                              # Visible divider line
+discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.large)
+```
+
+`spacing` accepts `discord.SeparatorSpacing.small` (default) or
+`discord.SeparatorSpacing.large`.
+
+---
+
+## Section
+
+Groups related `TextDisplay` items (up to 3) with a required **accessory**
+component on the right side. The accessory is typically a `Thumbnail` or
+a `Button`.
+
+```python
+discord.ui.Section(
+    discord.ui.TextDisplay("## Alice"),
+    discord.ui.TextDisplay("Joined 3 months ago"),
+    accessory=discord.ui.Thumbnail(
+        "https://cdn.discordapp.com/avatars/.../avatar.png",
+        description="Alice's avatar",
+    ),
+)
+```
+
+> **Note:** `accessory=` is required — `Section` raises a `TypeError` if omitted.
+
+---
+
+## Thumbnail
+
+Image component used as a `Section` accessory.
+
+```python
+discord.ui.Thumbnail(
+    "https://example.com/image.png",
+    description="Alt text for accessibility",
+)
 ```
 
 ---
 
 ## Button
 
-Clickable buttons that trigger interactions.
+Clickable buttons. Must be placed inside an `ActionRow`.
 
 ```python
-Button(label="Confirm", custom_id="action:confirm", style=ButtonStyle.SUCCESS)
-Button(label="Cancel", custom_id="action:cancel", style=ButtonStyle.DANGER)
-Button(label="Learn More", style=ButtonStyle.LINK, url="https://example.com")
-Button(label="Disabled", custom_id="action:x", disabled=True)
+discord.ui.Button(
+    label="Confirm",
+    custom_id="action:confirm",
+    style=discord.ButtonStyle.success,
+)
+discord.ui.Button(
+    label="Cancel",
+    custom_id="action:cancel",
+    style=discord.ButtonStyle.danger,
+)
+discord.ui.Button(
+    label="Learn More",
+    style=discord.ButtonStyle.link,
+    url="https://example.com",
+)
 ```
 
 Button styles:
 
-| Style       | Colour | Use for                          |
-|-------------|--------|----------------------------------|
-| `PRIMARY`   | Blue   | Main action                      |
-| `SECONDARY` | Grey   | Secondary / neutral              |
-| `SUCCESS`   | Green  | Confirmation / positive          |
-| `DANGER`    | Red    | Destructive / irreversible       |
-| `LINK`      | Grey   | Link to external URL             |
-
----
-
-## SelectMenu
-
-Dropdown menu with selectable options.
-
-```python
-SelectMenu(
-    custom_id="config:feature",
-    placeholder="Select a feature...",
-    options=[
-        SelectOption(label="Moderation", value="moderation", emoji="🔨"),
-        SelectOption(label="AutoMod", value="automod", emoji="🤖"),
-        SelectOption(label="Logging", value="logging", emoji="📋"),
-    ],
-    min_values=1,
-    max_values=1,
-)
-```
+| Style     | Colour | Use for                    |
+|-----------|--------|----------------------------|
+| `primary`   | Blue   | Main action                |
+| `secondary` | Grey   | Secondary / neutral        |
+| `success`   | Green  | Confirmation / positive    |
+| `danger`    | Red    | Destructive / irreversible |
+| `link`      | Grey   | Opens a URL (no custom_id) |
 
 ---
 
 ## ActionRow
 
-Groups buttons or a select menu. Required wrapper for interactive components.
+Groups buttons (up to 5) or a single select menu. Must be inside a `Container`.
 
 ```python
-# Buttons (up to 5 per row)
-ActionRow(
-    Button(label="Yes", custom_id="confirm:yes", style=ButtonStyle.SUCCESS),
-    Button(label="No", custom_id="confirm:no", style=ButtonStyle.DANGER),
+discord.ui.ActionRow(
+    discord.ui.Button(label="Yes", custom_id="confirm:yes", style=discord.ButtonStyle.success),
+    discord.ui.Button(label="No",  custom_id="confirm:no",  style=discord.ButtonStyle.danger),
+)
+```
+
+---
+
+## Select Menus
+
+discord.py provides multiple select variants:
+
+```python
+# String options select
+discord.ui.Select(
+    custom_id="config:feature",
+    placeholder="Select a feature...",
+    options=[
+        discord.SelectOption(label="Moderation", value="moderation", emoji="🔨"),
+        discord.SelectOption(label="AutoMod",    value="automod",    emoji="🤖"),
+    ],
+    min_values=1,
+    max_values=1,
 )
 
-# Select menu (one per row)
-ActionRow(
-    SelectMenu(custom_id="select:role", options=[...])
-)
+# Other variants
+discord.ui.UserSelect(custom_id="select:user")
+discord.ui.RoleSelect(custom_id="select:role")
+discord.ui.ChannelSelect(custom_id="select:channel")
+discord.ui.MentionableSelect(custom_id="select:mentionable")
 ```
 
 ---
 
 ## Modal
 
-Pop-up form for collecting text input. Sent as an interaction response
-(not as a message — must be the first response to an interaction).
+Pop-up form for collecting text input. Sent as an interaction response.
 
 ```python
-modal = Modal(
-    title="Report a User",
-    custom_id="report:submit",
-    inputs=[
-        TextInput(
-            label="Reason",
-            custom_id="report:reason",
-            placeholder="Describe the issue...",
-            style=TextInputStyle.PARAGRAPH,
-            required=True,
-            max_length=1000,
-        ),
-    ],
-)
-await interaction.response.send_modal(modal.to_discord_modal())
+class ReportModal(discord.ui.Modal, title="Report a User"):
+    reason = discord.ui.TextInput(
+        label="Reason",
+        placeholder="Describe the issue...",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=1000,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message(
+            f"Report received: {self.reason.value}",
+            ephemeral=True,
+        )
+
+# Send the modal from a slash command or button handler:
+await interaction.response.send_modal(ReportModal())
 ```
 
 ---
 
 ## Paginator
 
-Multi-page interface for long lists.
+Kairo's `Paginator` is a `LayoutView` subclass with Previous / Next buttons.
+Each page is a `discord.ui.Container`.
 
 ```python
-async def build_page(items, page_num, total_pages):
-    return [
-        Text(f"## Results — Page {page_num + 1}/{total_pages}"),
-        Separator(divider=True),
-        *[Text(f"• {item}") for item in items],
-    ]
+from src.bot.components import Paginator
 
-paginator = Paginator(
-    items=all_results,
-    page_size=10,
-    build_page=build_page,
-    custom_id_prefix="results",
-)
-await paginator.send(interaction)
+pages = [
+    discord.ui.Container(discord.ui.TextDisplay(f"Page {i + 1} content"))
+    for i in range(5)
+]
+
+view = Paginator(pages, ephemeral=True)
+await interaction.response.send_message(view=view, ephemeral=True)
 ```
 
-To handle navigation button interactions, update the paginator and re-send:
-
-```python
-@bot.event
-async def on_interaction(interaction):
-    custom_id = interaction.data.get("custom_id", "")
-    if custom_id == "results:next":
-        paginator.next_page()
-        container = await paginator.build_container()
-        await Panel(container).edit(interaction)
-    elif custom_id == "results:prev":
-        paginator.prev_page()
-        container = await paginator.build_container()
-        await Panel(container).edit(interaction)
-```
+The paginator handles the button interactions internally — no extra setup needed.
 
 ---
 
 ## Complete Example
 
-A moderation history panel with sections and navigation buttons:
+A user-info panel using Section with Thumbnail and a Separator:
 
 ```python
-from src.bot.components import (
-    Panel, Container, Section, Text, Separator,
-    Button, ButtonStyle, ActionRow,
-)
+import discord
+from src.bot.components import send_layout
 
-async def show_user_panel(interaction, member, cases):
-    panel = Panel(
-        Container(
-            Section(
-                Text(f"## Moderation History"),
-                Text(f"**User:** {member.mention}\n**Cases:** {len(cases)}"),
-                thumbnail_url=member.display_avatar.url,
-                thumbnail_alt=f"{member.display_name}'s avatar",
-            ),
-            Separator(divider=True),
-            *[
-                Text(
-                    f"**Case #{c.id}** — {c.case_type.value}\n"
-                    f"Reason: {c.reason or 'None'}"
-                )
-                for c in cases[:5]
-            ],
-            Separator(),
-            ActionRow(
-                Button(
-                    label="View All Cases",
-                    custom_id=f"history:all:{member.id}",
-                    style=ButtonStyle.SECONDARY,
-                ),
+async def show_userinfo(interaction: discord.Interaction, member: discord.Member) -> None:
+    created = discord.utils.format_dt(member.created_at, "R")
+    joined  = discord.utils.format_dt(member.joined_at, "R") if member.joined_at else "Unknown"
+
+    view = discord.ui.LayoutView()
+    view.add_item(discord.ui.Container(
+        discord.ui.Section(
+            discord.ui.TextDisplay(f"## {member.display_name}"),
+            discord.ui.TextDisplay(f"`{member}` • {member.mention}"),
+            accessory=discord.ui.Thumbnail(
+                member.display_avatar.url,
+                description=f"{member.display_name}'s avatar",
             ),
         ),
-        ephemeral=True,
-    )
-    await panel.send(interaction)
+        discord.ui.Separator(visible=True),
+        discord.ui.TextDisplay(
+            f"**ID:** `{member.id}`\n"
+            f"**Account created:** {created}\n"
+            f"**Joined server:** {joined}\n"
+            f"**Top role:** {member.top_role.mention}"
+        ),
+    ))
+
+    await send_layout(interaction, view, ephemeral=True)
 ```
 
 ---
 
 ## Notes for Developers
 
-- Components V2 messages cannot mix components and content/embeds in the same message.
-- The `IS_COMPONENTS_V2` flag is set automatically by `Panel.send()` — you do not need to set it manually.
-- Buttons with `disabled=True` are visible but unclickable — use this for the current-page indicator in paginators.
-- `custom_id` values must be unique within a message and max 100 characters.
-- See the [Discord API docs](https://discord.com/developers/docs/interactions/message-components) for full spec.
+- CV2 messages are sent via `view=` — **not** `components=`. Passing `components=` directly is not supported by discord.py.
+- `Section.accessory` is **required** — omitting it raises `TypeError`.
+- `Separator` uses `visible=` to control the divider line, not `divider=`.
+- `Button` requires `custom_id=` for all non-link styles; link buttons require `url=` instead.
+- A single `LayoutView` can hold up to 40 total items across all nested components.
+- `TextDisplay` content counts toward a 4000-character limit across the whole view.
+- See the [Discord API docs](https://discord.com/developers/docs/components/overview) for the full CV2 spec.

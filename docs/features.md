@@ -21,7 +21,7 @@ src/bot/features/<feature_name>/
 ├── __init__.py   ← Exports setup() — required for discord.py to load the feature
 ├── cog.py        ← discord.py Cog: slash commands, event listeners
 ├── service.py    ← Business logic (no discord.py types in method signatures)
-└── views.py      ← Components V2 panels (optional — for complex UIs)
+└── views.py      ← Complex LayoutView subclasses (optional)
 ```
 
 ### `__init__.py`
@@ -63,15 +63,47 @@ Contains all business logic. This separation allows:
 - Keeping cogs thin and readable
 
 ```python
+import discord
+from ...components import send_layout
+
 class MyService:
     def __init__(self, bot: KairoBot) -> None:
         self.bot = bot
 
     async def do_something(self, interaction: discord.Interaction, ...) -> None:
-        # ... logic here ...
-        panel = Panel(Container(Text("Done!")), ephemeral=True)
-        await panel.send(interaction)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("✅ Done!"),
+        ))
+        await send_layout(interaction, view, ephemeral=True)
 ```
+
+---
+
+## Auto-Discovery
+
+Kairo automatically discovers and loads feature cogs at startup. There is
+**no registration step** — you only need to create the files.
+
+The loader scans `src/bot/features/` and loads any subdirectory that:
+1. Is a Python package (contains `__init__.py`)
+2. Contains a `cog.py` file
+
+Directories starting with `_` (e.g. `__pycache__`) are skipped automatically.
+
+At startup you will see log output like:
+
+```
+Discovered 4 feature cog(s): automod, logging, moderation, utility
+Loaded cog: src.bot.features.automod.cog
+Loaded cog: src.bot.features.logging.cog
+Loaded cog: src.bot.features.moderation.cog
+Loaded cog: src.bot.features.utility.cog
+Cog loading complete: 4 loaded, 0 failed.
+```
+
+If a cog fails to load (syntax error, missing dependency, etc.), the error
+is logged and the remaining cogs continue loading.
 
 ---
 
@@ -109,45 +141,36 @@ async def setup(bot) -> None:
 
 ```python
 # src/bot/features/tickets/cog.py
-from discord.ext import commands
-from discord import app_commands
 import discord
+from discord import app_commands
+from discord.ext import commands
 
 from ...core.bot import KairoBot
 from .service import TicketsService
+
 
 class TicketsCog(commands.Cog, name="Tickets"):
     def __init__(self, bot: KairoBot) -> None:
         self.bot = bot
         self.service = TicketsService(bot)
 
-    @app_commands.command(name="ticket", description="Manage support tickets.")
+    @app_commands.command(name="ticket", description="Open a support ticket.")
     @app_commands.guild_only()
     async def ticket(self, interaction: discord.Interaction) -> None:
         await self.service.open_ticket(interaction)
+
 
 async def setup(bot: KairoBot) -> None:
     await bot.add_cog(TicketsCog(bot))
 ```
 
-### Step 4 — Register the feature
+That's it — restart the bot and the `tickets` feature will be discovered
+and loaded automatically. No changes to `bot.py` are required.
 
-Add the module path to the cog list in `src/bot/core/bot.py`:
+### Step 4 — Document it
 
-```python
-cog_modules: list[str] = [
-    "src.bot.features.moderation.cog",
-    "src.bot.features.automod.cog",
-    "src.bot.features.logging.cog",
-    "src.bot.features.utility.cog",
-    "src.bot.features.tickets.cog",   # ← Add this
-]
-```
-
-### Step 5 — Document it
-
-Add the feature to `docs/features.md` and create `docs/features/tickets.md`
-with command documentation.
+Add the feature to the table at the bottom of this file and create
+`docs/features/tickets.md` with command documentation.
 
 ---
 
@@ -162,7 +185,7 @@ class TicketsService:
     def __init__(self, bot: KairoBot) -> None:
         self.bot = bot
 
-    def _guild_repo(self):
+    def _guild_repo(self) -> GuildRepository:
         return GuildRepository(self.bot.db)
 
     async def open_ticket(self, interaction: discord.Interaction) -> None:
@@ -171,6 +194,27 @@ class TicketsService:
 ```
 
 If your feature needs new tables, create a migration. See [database.md](database.md).
+
+---
+
+## Components V2 in Features
+
+All Discord interfaces use `discord.ui.LayoutView`. See [components.md](components.md)
+for the full guide. The short version:
+
+```python
+import discord
+from ...components import send_layout
+
+# Build the view
+view = discord.ui.LayoutView()
+view.add_item(discord.ui.Container(
+    discord.ui.TextDisplay("✅ Action completed."),
+))
+
+# Send it
+await send_layout(interaction, view, ephemeral=True)
+```
 
 ---
 
@@ -214,9 +258,9 @@ necessary permissions before attempting the action.
 
 ## Existing Features
 
-| Feature      | Module path                           | Commands                        |
-|--------------|---------------------------------------|---------------------------------|
-| Moderation   | `src.bot.features.moderation.cog`     | /ban, /kick, /timeout, /warn, /history, /case |
-| AutoMod      | `src.bot.features.automod.cog`        | (automatic — no commands yet)   |
-| Logging      | `src.bot.features.logging.cog`        | (automatic — no commands yet)   |
-| Utility      | `src.bot.features.utility.cog`        | /ping, /botinfo, /userinfo, /serverinfo, /avatar |
+| Feature      | Module path                       | Commands                                                   |
+|--------------|-----------------------------------|------------------------------------------------------------|
+| Moderation   | `src.bot.features.moderation.cog` | /ban, /kick, /timeout, /warn, /history, /case             |
+| AutoMod      | `src.bot.features.automod.cog`    | (automatic — no commands yet)                              |
+| Logging      | `src.bot.features.logging.cog`    | (automatic — no commands yet)                              |
+| Utility      | `src.bot.features.utility.cog`    | /help, /ping, /botinfo, /userinfo, /serverinfo, /avatar   |
