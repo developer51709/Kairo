@@ -225,7 +225,7 @@ class UtilityCog(commands.Cog, name="Utility"):
                 ),
             )
         )
-        await send_layout(interaction, view, ephemeral=True)
+        await send_layout(interaction, view, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     # ------------------------------------------------------------------ #
     # Server Info                                                          #
@@ -267,7 +267,7 @@ class UtilityCog(commands.Cog, name="Utility"):
                 ),
             )
         )
-        await send_layout(interaction, view, ephemeral=True)
+        await send_layout(interaction, view, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     # ------------------------------------------------------------------ #
     # Avatar                                                               #
@@ -289,7 +289,18 @@ class UtilityCog(commands.Cog, name="Utility"):
         view = _simple_view(
             discord.ui.Container(
                 discord.ui.TextDisplay(f"## {target.display_name}'s Avatar"),
-                discord.ui.TextDisplay(f"[Open in browser]({avatar_url})"),
+                discord.ui.MediaGallery(
+                    discord.MediaGalleryItem(
+                        media=avatar_url,
+                    ),
+                ),
+                discord.ui.ActionRow(
+                    discord.ui.Button(
+                        url=avatar_url,
+                        style=discord.ButtonStyle.link,
+                        label="Open in browser",
+                    ),
+                ),
             )
         )
         await send_layout(interaction, view, ephemeral=True)

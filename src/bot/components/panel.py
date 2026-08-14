@@ -33,6 +33,7 @@ async def send_layout(
     view: discord.ui.LayoutView,
     *,
     ephemeral: bool = False,
+    allowed_mentions: discord.AllowedMentions = discord.AllowedMentions.none(),
 ) -> None:
     """
     Send a LayoutView as the primary response to a slash-command interaction.
@@ -44,13 +45,14 @@ async def send_layout(
         view:        A populated discord.ui.LayoutView instance.
         ephemeral:   If True the message is only visible to the invoker.
     """
-    await interaction.response.send_message(view=view, ephemeral=ephemeral)
+    await interaction.response.send_message(view=view, ephemeral=ephemeral, allowed_mentions=allowed_mentions)
     log.debug("LayoutView sent as interaction response (ephemeral=%s).", ephemeral)
 
 
 async def edit_layout(
     interaction: discord.Interaction,
     view: discord.ui.LayoutView,
+    allowed_mentions: discord.AllowedMentions = discord.AllowedMentions.none(),
 ) -> None:
     """
     Edit the original interaction response with a new LayoutView.
@@ -61,7 +63,7 @@ async def edit_layout(
         interaction: The component interaction to respond to.
         view:        The new LayoutView to replace the current message with.
     """
-    await interaction.response.edit_message(view=view)
+    await interaction.response.edit_message(view=view, allowed_mentions=allowed_mentions)
     log.debug("LayoutView used to edit interaction response.")
 
 
