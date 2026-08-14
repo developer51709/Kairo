@@ -3,66 +3,97 @@ src/bot/components/__init__.py
 -------------------------------
 Kairo Components Package
 
-Provides high-level, reusable abstractions over Discord Components V2.
-Rather than constructing raw discord.py component objects everywhere,
-Kairo features use this package to build consistent, styled interfaces.
+All CV2 components are provided directly by discord.py 2.6+.
+This package re-exports them from discord.ui so the rest of Kairo
+can import from one consistent location, and adds Kairo-specific
+send helpers.
 
-This abstraction layer serves two purposes:
-    1. Consistency — all interactive UIs share the same style and behaviour.
-    2. Simplicity   — feature cogs describe *what* to show, not *how* to build it.
+CV2 Component Types:
+    discord.ui.LayoutView  — Top-level view, passed as ``view=`` to send_message.
+    discord.ui.Container   — Top-level layout block (can nest all other CV2 items).
+    discord.ui.Section     — Content group with a required accessory (Button/Thumbnail).
+    discord.ui.TextDisplay — Markdown text content.
+    discord.ui.Separator   — Visual spacing or divider line.
+    discord.ui.Thumbnail   — Image accessory, used inside Section.
+    discord.ui.ActionRow   — Holds buttons or a single select menu.
+    discord.ui.Button      — Clickable button.
+    discord.ui.Select      — String select dropdown.
+    discord.SeparatorSpacing — Enum: small / large spacing for Separator.
 
-Components V2 context:
-    Discord Components V2 allows sending messages composed of structured
-    component objects (containers, sections, buttons, etc.) instead of
-    traditional embeds. It requires the IS_COMPONENTS_V2 message flag (1 << 15)
-    and is only available in bots with the required access level.
-
-Package layout:
-    base.py       — Base class and shared utilities
-    container.py  — Container and layout components
-    text.py       — Text display components
-    interactive.py— Buttons, select menus, and action rows
-    modal.py      — Modal dialog builder
-    pagination.py — Multi-page interface helper
-    panel.py      — High-level panel builder (the main entry point)
+Kairo Helpers:
+    send_layout            — Send a LayoutView as an interaction response.
+    edit_layout            — Edit an existing interaction response with a LayoutView.
+    followup_layout        — Send a LayoutView as an interaction followup.
+    send_layout_to_channel — Send a LayoutView as a proactive channel message.
+    Paginator              — Multi-page LayoutView with Previous/Next buttons.
 
 Quick example:
-    from src.bot.components import Panel, Container, Text, Separator, Button, ActionRow
+    import discord
+    from src.bot.components import send_layout
 
-    panel = Panel(
-        Container(
-            Text("# Server Configuration"),
-            Separator(),
-            Text("Manage your server settings below."),
-            ActionRow(
-                Button(label="Moderation", custom_id="config:moderation"),
-                Button(label="Logging", custom_id="config:logging"),
-            ),
-        )
-    )
-    await panel.send(interaction)
+    view = discord.ui.LayoutView()
+    view.add_item(discord.ui.Container(
+        discord.ui.TextDisplay("# Server Configuration"),
+        discord.ui.Separator(visible=True),
+        discord.ui.TextDisplay("Manage your server settings below."),
+    ))
+    await send_layout(interaction, view, ephemeral=True)
 
 See docs/components.md for full documentation.
 """
 
-from .panel import Panel
-from .container import Container, Section
-from .text import Text, Separator
-from .interactive import Button, ButtonStyle, SelectMenu, ActionRow
-from .modal import Modal, TextInput
+# Native discord.py CV2 types — re-exported for convenient imports.
+from discord.ui import (
+    LayoutView,
+    Container,
+    Section,
+    TextDisplay,
+    Separator,
+    Thumbnail,
+    ActionRow,
+    Button,
+    Select,
+    UserSelect,
+    RoleSelect,
+    ChannelSelect,
+    MentionableSelect,
+    Modal,
+    TextInput,
+)
+from discord import ButtonStyle, SeparatorSpacing
+
+# Kairo helpers
+from .panel import (
+    send_layout,
+    edit_layout,
+    followup_layout,
+    send_layout_to_channel,
+)
 from .pagination import Paginator
 
 __all__ = [
-    "Panel",
+    # discord.ui CV2 types
+    "LayoutView",
     "Container",
     "Section",
-    "Text",
+    "TextDisplay",
     "Separator",
-    "Button",
-    "ButtonStyle",
-    "SelectMenu",
+    "Thumbnail",
     "ActionRow",
+    "Button",
+    "Select",
+    "UserSelect",
+    "RoleSelect",
+    "ChannelSelect",
+    "MentionableSelect",
     "Modal",
     "TextInput",
+    "ButtonStyle",
+    "SeparatorSpacing",
+    # Kairo send helpers
+    "send_layout",
+    "edit_layout",
+    "followup_layout",
+    "send_layout_to_channel",
     "Paginator",
 ]

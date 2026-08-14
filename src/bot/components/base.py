@@ -1,41 +1,20 @@
 """
 src/bot/components/base.py
 ---------------------------
-Components Base Classes
+Base component types — replaced by discord.ui
 
-Defines the abstract base classes and shared utilities used by all
-Kairo component types.
+The KairoComponent base class has been removed. All components now
+use discord.ui natively:
 
-All renderable components inherit from KairoComponent and implement
-to_dict() which returns the raw discord.py-compatible component payload.
+    discord.ui.LayoutView  — top-level view (passed as view= kwarg)
+    discord.ui.Container   — top-level layout block
+    discord.ui.Section     — grouped content with an accessory
+    discord.ui.TextDisplay — markdown text
+    discord.ui.Separator   — visual spacing / divider
+    discord.ui.ActionRow   — holds buttons or a select menu
+    discord.ui.Button      — clickable button
+    discord.ui.Select      — string select menu
+    discord.ui.Thumbnail   — image accessory for Section
+
+This file is kept as a documentation stub.
 """
-
-from __future__ import annotations
-
-from abc import ABC, abstractmethod
-from typing import Any
-
-
-class KairoComponent(ABC):
-    """
-    Abstract base class for all Kairo UI components.
-
-    Each component represents one element in a Discord Components V2
-    message payload. Components can be nested (a Container holds other
-    components) or leaf nodes (a Text element contains only a string).
-
-    All subclasses must implement to_dict() which returns the component
-    in the format expected by discord.py's component system.
-    """
-
-    @abstractmethod
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialise the component to a discord.py-compatible dict.
-
-        Returns:
-            A dict conforming to the Discord Components V2 API spec.
-        """
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}>"

@@ -1,151 +1,99 @@
 """
 src/bot/components/pagination.py
 ----------------------------------
-Paginator Component
+Pagination Helper
 
-Provides a reusable multi-page interface using Components V2.
-Useful for displaying long lists (moderation cases, warnings, leaderboards)
-that do not fit in a single message.
-
-The Paginator manages page state and builds Previous/Next buttons
-automatically. Page content is provided by a callable that receives the
-current page number and returns a list of KairoComponent objects.
+A simple paginator built on discord.ui.LayoutView and discord.ui.Button.
 
 Usage:
-    async def build_page(page: int, total_pages: int) -> list[KairoComponent]:
-        cases = cases_on_page[page]
-        return [
-            Text(f"## Moderation Cases — Page {page + 1}/{total_pages}"),
-            Separator(),
-            *[Text(f"**Case #{c.id}** — {c.case_type.value}") for c in cases],
-        ]
-
-    paginator = Paginator(
-        items=all_cases,
-        page_size=5,
-        build_page=build_page,
-        custom_id_prefix="modcases",
-    )
-    await paginator.send(interaction)
+    pages = [
+        discord.ui.Container(discord.ui.TextDisplay("Page 1 content")),
+        discord.ui.Container(discord.ui.TextDisplay("Page 2 content")),
+    ]
+    view = Paginator(pages, ephemeral=True)
+    await interaction.response.send_message(view=view, ephemeral=True)
 """
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Generic, TypeVar
+from typing import List
 
 import discord
 
-from .container import Container
-from .interactive import ActionRow, Button, ButtonStyle
-from .text import Text, Separator
 
-T = TypeVar("T")
-
-
-class Paginator(Generic[T]):
+class Paginator(discord.ui.LayoutView):
     """
-    A multi-page interactive interface.
+    A multi-page LayoutView with Previous / Next navigation buttons.
 
-    Attributes:
-        items            (list[T]):            Full list of items to paginate.
-        page_size        (int):                Number of items per page.
-        build_page       (callable):           Async function that builds page content.
-        custom_id_prefix (str):                Prefix for button custom_ids.
-        current_page     (int):                Currently displayed page (0-indexed).
+    Each page is a discord.ui.Container. The paginator wraps the current
+    page in a parent Container that also holds the navigation ActionRow.
+
+    Args:
+        pages:    A list of Container objects, one per page.
+        ephemeral: Whether the view was sent ephemerally (informational only).
+        timeout:  Interaction timeout in seconds. Defaults to 120.
     """
 
     def __init__(
         self,
-        items: list[T],
-        page_size: int,
-        build_page: Callable[[list[T], int, int], Awaitable[list[Any]]],
-        custom_id_prefix: str = "paginator",
+        pages: List[discord.ui.Container],
+        *,
+        ephemeral: bool = False,
+        timeout: float = 120.0,
     ) -> None:
-        """
-        Args:
-            items:            The full dataset to paginate.
-            page_size:        Number of items to show per page.
-            build_page:       Async callable(page_items, page_num, total_pages)
-                              that returns a list of KairoComponent objects.
-            custom_id_prefix: Prefix used to build unique button custom_ids.
-                              Should be unique per paginator instance to avoid
-                              conflicts in multi-paginator messages.
-        """
-        self.items = items
-        self.page_size = page_size
-        self.build_page = build_page
-        self.custom_id_prefix = custom_id_prefix
-        self.current_page = 0
+        super().__init__(timeout=timeout)
+        if not pages:
+            raise ValueError("Paginator requires at least one page.")
 
-    @property
-    def total_pages(self) -> int:
-        """Total number of pages (minimum 1)."""
-        return max(1, -(-len(self.items) // self.page_size))  # ceil division
+        self.pages = pages
+        self.ephemeral = ephemeral
+        self._index = 0
 
-    @property
-    def page_items(self) -> list[T]:
-        """Items for the current page."""
-        start = self.current_page * self.page_size
-        return self.items[start : start + self.page_size]
-
-    async def build_container(self) -> Container:
-        """
-        Build the Container for the current page.
-
-        Returns:
-            A Container with page content and navigation buttons.
-        """
-        content = await self.build_page(self.page_items, self.current_page, self.total_pages)
-
-        nav = ActionRow(
-            Button(
-                label="◀ Previous",
-                custom_id=f"{self.custom_id_prefix}:prev",
-                style=ButtonStyle.SECONDARY,
-                disabled=self.current_page == 0,
-            ),
-            Button(
-                label=f"Page {self.current_page + 1} / {self.total_pages}",
-                custom_id=f"{self.custom_id_prefix}:page",
-                style=ButtonStyle.SECONDARY,
-                disabled=True,  # Info-only, not clickable
-            ),
-            Button(
-                label="Next ▶",
-                custom_id=f"{self.custom_id_prefix}:next",
-                style=ButtonStyle.SECONDARY,
-                disabled=self.current_page >= self.total_pages - 1,
-            ),
+        # Navigation buttons
+        self._prev = discord.ui.Button(
+            label="← Previous",
+            style=discord.ButtonStyle.secondary,
+            custom_id="paginator:prev",
+            disabled=True,
         )
-
-        return Container(*content, Separator(), nav)
-
-    async def send(self, interaction: discord.Interaction) -> None:
-        """
-        Send the first page as an interaction response.
-
-        Args:
-            interaction: The discord.py Interaction to respond to.
-        """
-        container = await self.build_container()
-        await interaction.response.send_message(
-            components=[container.to_dict()],
-            flags=discord.MessageFlags.is_components_v2,  # type: ignore[attr-defined]
+        self._next = discord.ui.Button(
+            label="Next →",
+            style=discord.ButtonStyle.secondary,
+            custom_id="paginator:next",
+            disabled=len(pages) <= 1,
         )
+        self._prev.callback = self._on_prev  # type: ignore[method-assign]
+        self._next.callback = self._on_next  # type: ignore[method-assign]
 
-    def go_to(self, page: int) -> None:
-        """
-        Navigate to a specific page (clamped to valid range).
+        self._render()
 
-        Args:
-            page: Target page number (0-indexed).
-        """
-        self.current_page = max(0, min(page, self.total_pages - 1))
+    def _render(self) -> None:
+        """Rebuild the view for the current page index."""
+        self.clear_items()
 
-    def next_page(self) -> None:
-        """Advance to the next page, if one exists."""
-        self.go_to(self.current_page + 1)
+        # Current page container
+        self.add_item(self.pages[self._index])
 
-    def prev_page(self) -> None:
-        """Go back to the previous page, if one exists."""
-        self.go_to(self.current_page - 1)
+        # Navigation row
+        nav = discord.ui.ActionRow(self._prev, self._next)
+        footer = discord.ui.Container(
+            discord.ui.TextDisplay(
+                f"Page {self._index + 1} of {len(self.pages)}"
+            ),
+            nav,
+        )
+        self.add_item(footer)
+
+    async def _on_prev(self, interaction: discord.Interaction) -> None:
+        self._index = max(0, self._index - 1)
+        self._prev.disabled = self._index == 0
+        self._next.disabled = self._index >= len(self.pages) - 1
+        self._render()
+        await interaction.response.edit_message(view=self)
+
+    async def _on_next(self, interaction: discord.Interaction) -> None:
+        self._index = min(len(self.pages) - 1, self._index + 1)
+        self._prev.disabled = self._index == 0
+        self._next.disabled = self._index >= len(self.pages) - 1
+        self._render()
+        await interaction.response.edit_message(view=self)

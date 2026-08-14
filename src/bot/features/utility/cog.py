@@ -4,7 +4,7 @@ src/bot/features/utility/cog.py
 Utility Cog
 
 General purpose information and utility slash commands.
-Uses Components V2 panels for rich, formatted responses.
+Uses discord.ui.LayoutView (Components V2) for rich, formatted responses.
 
 Commands:
     /help       — Show all available commands grouped by category
@@ -25,7 +25,7 @@ from discord.ext import commands
 
 from ...core.bot import KairoBot
 from ...core.logging import get_logger
-from ...components import Panel, Container, Section, Text, Separator
+from ...components import send_layout
 
 log = get_logger(__name__)
 
@@ -36,6 +36,14 @@ _CATEGORY_ICONS: dict[str, str] = {
     "AutoMod":    "🤖",
     "Logging":    "📋",
 }
+
+
+def _simple_view(*items: discord.ui.Item) -> discord.ui.LayoutView:
+    """Build a LayoutView from a flat list of top-level items."""
+    view = discord.ui.LayoutView()
+    for item in items:
+        view.add_item(item)
+    return view
 
 
 class UtilityCog(commands.Cog, name="Utility"):
@@ -61,94 +69,73 @@ class UtilityCog(commands.Cog, name="Utility"):
         Display all registered slash commands grouped by cog/category.
 
         When *category* is provided, only commands belonging to that cog are
-        shown.  The lookup is case-insensitive.
+        shown. The lookup is case-insensitive.
         """
-        # Build a mapping of {cog_name: [app_commands.Command, ...]} from the
-        # bot's command tree.  We iterate over the tree's global commands so
-        # that commands registered by every loaded cog are included.
+        # Build {cog_name: [Command, ...]} from the bot's command tree.
         grouped: dict[str, list[app_commands.Command]] = {}
-
         for cmd in self.bot.tree.get_commands():
-            # Only handle leaf commands (not groups) for now.
             if not isinstance(cmd, app_commands.Command):
                 continue
             cog_name = cmd.binding.qualified_name if cmd.binding else "Other"
             grouped.setdefault(cog_name, []).append(cmd)
 
-        # Sort categories alphabetically so the output is stable.
         sorted_categories = sorted(grouped.keys())
 
         # ---- Category filter ----
         if category:
-            # Case-insensitive match against the category name.
             match = next(
-                (name for name in sorted_categories if name.lower() == category.lower()),
+                (n for n in sorted_categories if n.lower() == category.lower()),
                 None,
             )
             if match is None:
                 available = ", ".join(f"`{n}`" for n in sorted_categories)
-                panel = Panel(
-                    Container(
-                        Text(f"❌ Category **{category}** not found."),
-                        Separator(divider=True),
-                        Text(f"**Available categories:** {available}"),
-                    ),
-                    ephemeral=True,
+                view = _simple_view(
+                    discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            f"❌ Category **{category}** not found.\n"
+                            f"**Available categories:** {available}"
+                        ),
+                    )
                 )
-                await panel.send(interaction)
+                await send_layout(interaction, view, ephemeral=True)
                 return
             sorted_categories = [match]
 
-        # ---- Build the panel ----
-        # One Container per category keeps each section visually distinct.
-        containers: list[Container] = []
+        # ---- Build the view ----
+        view = discord.ui.LayoutView()
 
-        # Header container.
-        header_text = (
-            f"## 📖 Kairo Help — {sorted_categories[0]}"
-            if category
-            else "## 📖 Kairo Help"
-        )
-        if not category:
-            total = sum(len(cmds) for cmds in grouped.values())
-            subtext = f"**{total}** commands across **{len(sorted_categories)}** categories."
-        else:
+        # Header
+        if category:
+            header = f"## 📖 Kairo Help — {sorted_categories[0]}"
             subtext = f"Showing commands in the **{sorted_categories[0]}** category."
+        else:
+            total = sum(len(c) for c in grouped.values())
+            header = "## 📖 Kairo Help"
+            subtext = f"**{total}** commands across **{len(sorted_categories)}** categories."
 
-        containers.append(
-            Container(
-                Text(header_text),
-                Text(subtext),
-            )
-        )
+        view.add_item(discord.ui.Container(
+            discord.ui.TextDisplay(header),
+            discord.ui.TextDisplay(subtext),
+        ))
 
+        # One container per category
         for cat_name in sorted_categories:
             icon = _CATEGORY_ICONS.get(cat_name, "📦")
             cmds = sorted(grouped[cat_name], key=lambda c: c.name)
+            lines = "\n".join(f"`/{cmd.name}` — {cmd.description}" for cmd in cmds)
+            view.add_item(discord.ui.Container(
+                discord.ui.TextDisplay(f"**{icon} {cat_name}**"),
+                discord.ui.Separator(visible=False),
+                discord.ui.TextDisplay(lines),
+            ))
 
-            # Build a formatted string: `/name` — description
-            lines = "\n".join(
-                f"`/{cmd.name}` — {cmd.description}" for cmd in cmds
-            )
+        # Footer
+        view.add_item(discord.ui.Container(
+            discord.ui.Separator(visible=True),
+            discord.ui.TextDisplay("Use `/help category:<name>` to filter by category."),
+        ))
 
-            containers.append(
-                Container(
-                    Text(f"**{icon} {cat_name}**"),
-                    Separator(divider=False),
-                    Text(lines),
-                )
-            )
-
-        # Footer hint.
-        containers.append(
-            Container(
-                Separator(divider=True),
-                Text("Use `/help category:<name>` to filter by category."),
-            )
-        )
-
-        panel = Panel(*containers, ephemeral=True)
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
         log.debug(
             "Help panel sent to %s (category=%r, categories=%d).",
             interaction.user,
@@ -156,17 +143,24 @@ class UtilityCog(commands.Cog, name="Utility"):
             len(sorted_categories),
         )
 
+    # ------------------------------------------------------------------ #
+    # Ping                                                                 #
+    # ------------------------------------------------------------------ #
+
     @app_commands.command(name="ping", description="Check Kairo's response latency.")
     async def ping(self, interaction: discord.Interaction) -> None:
         """Respond with the current WebSocket heartbeat latency."""
         latency_ms = round(self.bot.latency * 1000)
-        panel = Panel(
-            Container(
-                Text(f"🏓 **Pong!** Latency: **{latency_ms}ms**"),
-            ),
-            ephemeral=True,
+        view = _simple_view(
+            discord.ui.Container(
+                discord.ui.TextDisplay(f"🏓 **Pong!** Latency: **{latency_ms}ms**"),
+            )
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
+
+    # ------------------------------------------------------------------ #
+    # Bot Info                                                             #
+    # ------------------------------------------------------------------ #
 
     @app_commands.command(name="botinfo", description="Display information about Kairo.")
     async def botinfo(self, interaction: discord.Interaction) -> None:
@@ -175,21 +169,24 @@ class UtilityCog(commands.Cog, name="Utility"):
         guild_count = len(self.bot.guilds)
         latency_ms = round(self.bot.latency * 1000)
 
-        panel = Panel(
-            Container(
-                Text("# Kairo"),
-                Text("A modern, self-hostable Discord platform."),
-                Separator(divider=True),
-                Text(
+        view = _simple_view(
+            discord.ui.Container(
+                discord.ui.TextDisplay("# Kairo"),
+                discord.ui.TextDisplay("A modern, self-hostable Discord platform."),
+                discord.ui.Separator(visible=True),
+                discord.ui.TextDisplay(
                     f"**Guilds:** {guild_count}\n"
                     f"**Latency:** {latency_ms}ms\n"
                     f"**discord.py:** 2.7.1\n"
                     f"**Phase:** 1 — Foundation"
                 ),
-            ),
-            ephemeral=True,
+            )
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
+
+    # ------------------------------------------------------------------ #
+    # User Info                                                            #
+    # ------------------------------------------------------------------ #
 
     @app_commands.command(name="userinfo", description="Display information about a user.")
     @app_commands.describe(member="The member to look up. Defaults to yourself.")
@@ -211,26 +208,31 @@ class UtilityCog(commands.Cog, name="Utility"):
         if len(roles) > 10:
             role_str += f" (+{len(roles) - 10} more)"
 
-        panel = Panel(
-            Container(
-                Section(
-                    Text(f"## {target.display_name}"),
-                    Text(f"`{target}` • {target.mention}"),
-                    thumbnail_url=target.display_avatar.url,
-                    thumbnail_alt=f"{target.display_name}'s avatar",
+        view = _simple_view(
+            discord.ui.Container(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(f"## {target.display_name}"),
+                    discord.ui.TextDisplay(f"`{target}` • {target.mention}"),
+                    accessory=discord.ui.Thumbnail(
+                        target.display_avatar.url,
+                        description=f"{target.display_name}'s avatar",
+                    ),
                 ),
-                Separator(divider=True),
-                Text(
+                discord.ui.Separator(visible=True),
+                discord.ui.TextDisplay(
                     f"**ID:** `{target.id}`\n"
                     f"**Account created:** {created}\n"
                     f"**Joined server:** {joined}\n"
                     f"**Top role:** {target.top_role.mention}\n"
                     f"**Roles:** {role_str}"
                 ),
-            ),
-            ephemeral=True,
+            )
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
+
+    # ------------------------------------------------------------------ #
+    # Server Info                                                          #
+    # ------------------------------------------------------------------ #
 
     @app_commands.command(name="serverinfo", description="Display information about this server.")
     @app_commands.guild_only()
@@ -241,16 +243,24 @@ class UtilityCog(commands.Cog, name="Utility"):
 
         created = discord.utils.format_dt(guild.created_at, "R")
 
-        panel = Panel(
-            Container(
-                Section(
-                    Text(f"## {guild.name}"),
-                    Text(f"ID: `{guild.id}`"),
-                    thumbnail_url=guild.icon.url if guild.icon else None,
-                    thumbnail_alt=f"{guild.name} icon",
-                ),
-                Separator(divider=True),
-                Text(
+        # Build Section with optional thumbnail
+        section_items: list[discord.ui.Item] = [
+            discord.ui.TextDisplay(f"## {guild.name}"),
+            discord.ui.TextDisplay(f"ID: `{guild.id}`"),
+        ]
+        section = discord.ui.Section(
+            *section_items,
+            accessory=discord.ui.Thumbnail(
+                guild.icon.url if guild.icon else "https://cdn.discordapp.com/embed/avatars/0.png",
+                description=f"{guild.name} icon",
+            ),
+        )
+
+        view = _simple_view(
+            discord.ui.Container(
+                section,
+                discord.ui.Separator(visible=True),
+                discord.ui.TextDisplay(
                     f"**Owner:** <@{guild.owner_id}>\n"
                     f"**Created:** {created}\n"
                     f"**Members:** {guild.member_count}\n"
@@ -258,10 +268,13 @@ class UtilityCog(commands.Cog, name="Utility"):
                     f"**Roles:** {len(guild.roles)}\n"
                     f"**Boost level:** {guild.premium_tier}"
                 ),
-            ),
-            ephemeral=True,
+            )
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
+
+    # ------------------------------------------------------------------ #
+    # Avatar                                                               #
+    # ------------------------------------------------------------------ #
 
     @app_commands.command(name="avatar", description="Display a user's avatar.")
     @app_commands.describe(member="The member whose avatar to show. Defaults to yourself.")
@@ -276,15 +289,13 @@ class UtilityCog(commands.Cog, name="Utility"):
         assert isinstance(target, discord.Member)
         avatar_url = target.display_avatar.url
 
-        panel = Panel(
-            Container(
-                Text(f"## {target.display_name}'s Avatar"),
-                # TODO: Use MediaGallery component when available in discord.py
-                Text(f"[Open in browser]({avatar_url})"),
-            ),
-            ephemeral=True,
+        view = _simple_view(
+            discord.ui.Container(
+                discord.ui.TextDisplay(f"## {target.display_name}'s Avatar"),
+                discord.ui.TextDisplay(f"[Open in browser]({avatar_url})"),
+            )
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
 
 
 async def setup(bot: KairoBot) -> None:

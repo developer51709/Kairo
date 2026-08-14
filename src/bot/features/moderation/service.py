@@ -9,7 +9,7 @@ Contains all moderation business logic. Separated from the cog so that:
        programmatically without going through a slash command.
 
 The service applies the Discord action, records a ModerationCase,
-and sends a response panel.
+and sends a response using discord.ui.LayoutView (Components V2).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from ...core.logging import get_logger
 from ...database.models.moderation import CaseType
 from ...database.repositories.moderation import ModerationRepository
 from ...database.repositories.user import UserRepository
-from ...components import Panel, Container, Text, Separator
+from ...components import send_layout
 
 log = get_logger(__name__)
 
@@ -49,6 +49,13 @@ def _parse_duration(duration_str: str) -> Optional[int]:
         return None
     amount, unit = int(match.group(1)), match.group(2).lower()
     return amount * _DURATION_MAP[unit]
+
+
+def _result_view(text: str) -> discord.ui.LayoutView:
+    """Build a simple single-container LayoutView for a moderation result."""
+    view = discord.ui.LayoutView()
+    view.add_item(discord.ui.Container(discord.ui.TextDisplay(text)))
+    return view
 
 
 class ModerationService:
@@ -109,25 +116,13 @@ class ModerationService:
             )
             return
 
-        # Record in database
-        # case = await self._mod_repo().create_case(
-        #     guild_id=interaction.guild.id,
-        #     target_id=member.id,
-        #     moderator_id=interaction.user.id,
-        #     case_type=CaseType.BAN,
-        #     reason=reason,
-        #     target_username=str(member),
-        #     moderator_username=str(interaction.user),
-        # )
+        # TODO: Record case in database once db is wired up (Phase 2).
 
-        panel = Panel(
-            Container(
-                Text(f"✅ **{member}** has been banned."),
-                Text(f"**Reason:** {reason or 'No reason provided.'}"),
-            ),
-            ephemeral=True,
+        view = _result_view(
+            f"✅ **{member}** has been banned.\n"
+            f"**Reason:** {reason or 'No reason provided.'}"
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
         log.info("Banned %s from guild %d (%s)", member, interaction.guild.id, reason)
 
     async def kick(
@@ -147,14 +142,11 @@ class ModerationService:
             )
             return
 
-        panel = Panel(
-            Container(
-                Text(f"✅ **{member}** has been kicked."),
-                Text(f"**Reason:** {reason or 'No reason provided.'}"),
-            ),
-            ephemeral=True,
+        view = _result_view(
+            f"✅ **{member}** has been kicked.\n"
+            f"**Reason:** {reason or 'No reason provided.'}"
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
         log.info("Kicked %s from guild %d (%s)", member, interaction.guild.id, reason)
 
     async def timeout(
@@ -184,14 +176,11 @@ class ModerationService:
             )
             return
 
-        panel = Panel(
-            Container(
-                Text(f"✅ **{member}** has been timed out for **{duration}**."),
-                Text(f"**Reason:** {reason or 'No reason provided.'}"),
-            ),
-            ephemeral=True,
+        view = _result_view(
+            f"✅ **{member}** has been timed out for **{duration}**.\n"
+            f"**Reason:** {reason or 'No reason provided.'}"
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
         log.info("Timed out %s for %ds in guild %d", member, seconds, interaction.guild.id)
 
     async def warn(
@@ -203,18 +192,13 @@ class ModerationService:
         """Issue a warning to a member and record a case + warning entry."""
         assert interaction.guild is not None
 
-        # TODO: Create case and warning in database once db is wired up.
-        # case = await self._mod_repo().create_case(...)
-        # warning = await self._mod_repo().create_warning(case)
+        # TODO: Create case and warning in database once db is wired up (Phase 2).
 
-        panel = Panel(
-            Container(
-                Text(f"⚠️ **{member}** has been warned."),
-                Text(f"**Reason:** {reason or 'No reason provided.'}"),
-            ),
-            ephemeral=True,
+        view = _result_view(
+            f"⚠️ **{member}** has been warned.\n"
+            f"**Reason:** {reason or 'No reason provided.'}"
         )
-        await panel.send(interaction)
+        await send_layout(interaction, view, ephemeral=True)
         log.info("Warned %s in guild %d (%s)", member, interaction.guild.id, reason)
 
     async def show_history(
@@ -223,15 +207,13 @@ class ModerationService:
         member: discord.Member,
     ) -> None:
         """Display a member's moderation history (placeholder)."""
-        panel = Panel(
-            Container(
-                Text(f"## Moderation History — {member}"),
-                Separator(divider=True),
-                Text("*No moderation history found.*"),
-            ),
-            ephemeral=True,
-        )
-        await panel.send(interaction)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(
+            discord.ui.TextDisplay(f"## Moderation History — {member}"),
+            discord.ui.Separator(visible=True),
+            discord.ui.TextDisplay("*No moderation history found.*"),
+        ))
+        await send_layout(interaction, view, ephemeral=True)
 
     async def show_case(
         self,
@@ -239,12 +221,10 @@ class ModerationService:
         case_id: int,
     ) -> None:
         """Display a specific moderation case (placeholder)."""
-        panel = Panel(
-            Container(
-                Text(f"## Case #{case_id}"),
-                Separator(divider=True),
-                Text("*Case lookup is not yet implemented.*"),
-            ),
-            ephemeral=True,
-        )
-        await panel.send(interaction)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(
+            discord.ui.TextDisplay(f"## Case #{case_id}"),
+            discord.ui.Separator(visible=True),
+            discord.ui.TextDisplay("*Case lookup is not yet implemented.*"),
+        ))
+        await send_layout(interaction, view, ephemeral=True)
