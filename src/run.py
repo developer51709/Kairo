@@ -189,7 +189,13 @@ async def main() -> None:
         print("Run 'python src/setup.py' to configure Kairo interactively.", file=sys.stderr)
         sys.exit(1)
 
-    Branding.print_info(f"Bot token: {'*' * len(config.bot_token) if config.bot_token else 'Not set'}")
+    token = config.bot_token
+    if token:
+        masked = token[:5] + "*" * (len(token) - 5)
+    else:
+        masked = "Not set"
+
+    Branding.print_info(f"Bot token: {masked}")
     Branding.print_info(f"Client ID: {config.client_id}")
     Branding.print_info(f"Debug mode: {'Enabled' if config.debug else 'Disabled'}")
     Branding.print_info(f"Database: {config.db_path}")
