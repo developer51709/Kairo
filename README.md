@@ -1,3 +1,5 @@
+![Banner Image](banner.jpeg)
+
 # Kairo
 
 > A modern, self-hostable Discord platform built for customization, automation, and beautiful interactive experiences.
