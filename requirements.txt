@@ -20,5 +20,5 @@ python-dotenv==1.0.1
 
 # ── API Server ─────────────────────────────────────────────────────
 # aiohttp — Async HTTP server for the REST API used by the dashboard.
-# Optional: only needed when running with --with-api.
+# The API starts by default with src/run.py (disable with --no-api).
 aiohttp==3.10.5

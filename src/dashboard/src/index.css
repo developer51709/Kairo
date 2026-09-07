@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* Kairo theme tokens                                                  */
+/* ------------------------------------------------------------------ */
+
+@theme {
+  /* Warm near-black canvas */
+  --color-night: #0b0a07;
+  --color-coal: #100e0a;
+  --color-panel: #16130e;
+  --color-well: #1d1912;
+  --color-line: #2c2619;
+
+  /* Warm text scale */
+  --color-sand: #f3ecdd;
+  --color-dune: #b5a98f;
+  --color-mist: #85796a;
+
+  /* Gold accent */
+  --color-gold: #e0a94e;
+  --color-gold-bright: #f6d193;
+  --color-gold-deep: #a97c2f;
+
+  /* Discord brand */
+  --color-discord: #5865f2;
+  --color-discord-hover: #6b76f7;
+  --color-discord-deep: #4450cf;
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-night text-sand antialiased;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(224, 169, 78, 0.35);
+  color: #fdf8ec;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0a07;
+}
+::-webkit-scrollbar-thumb {
+  background: #2c2619;
+  border-radius: 8px;
+  border: 2px solid #0b0a07;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4a3f26;
+}
+
+a,
+button {
+  outline-offset: 3px;
+}
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Decorative helpers                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Entry animation used across the landing page */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.drift {
+  animation: drift 9s ease-in-out infinite;
+}
+
+/* Soft pulsing status dot */
+@keyframes ping-soft {
+  0% {
+    box-shadow: 0 0 0 0 rgba(224, 169, 78, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(224, 169, 78, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(224, 169, 78, 0);
+  }
+}
+
+.status-dot {
+  animation: ping-soft 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Faint blueprint grid, faded toward the edges */
+.bg-blueprint {
+  background-image:
+    linear-gradient(to right, rgba(224, 169, 78, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(224, 169, 78, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 35%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 35%, transparent 78%);
+}
+
+/* Gold gradient text */
+.text-gold-gradient {
+  background: linear-gradient(100deg, #f6d193 0%, #e0a94e 45%, #c98a34 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Fine card hairline that reads on the dark canvas */
+.hairline {
+  border: 1px solid rgba(224, 169, 78, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .drift,
+  .status-dot {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}

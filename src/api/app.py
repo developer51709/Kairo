@@ -41,18 +41,43 @@ async def auth_middleware(request: web.Request, handler):
     """
     API key authentication middleware.
 
-    Skips authentication for /health (public endpoint).
-    All other routes require the X-API-Key header to match the
-    configured API_SECRET.
+    Only requests that target API-key-protected endpoints (anything under
+    /api/ except /api/v1/me) are checked against API_SECRET. Everything else
+    is public or cookie-authenticated:
+
+        /health         — public health check
+        /auth/*         — public Discord OAuth2 flow (start/callback/logout)
+        /api/v1/me      — authenticated via the kairo_session cookie
+
+    CLIENT_ID and CLIENT_SECRET do NOT protect these endpoints — the key that
+    unlocks /api/* is API_SECRET from the project .env.
     """
-    if request.path == "/health":
+    path = request.path
+    is_cookie_or_public = (
+        path == "/health"
+        or path == "/api/v1/me"
+        or path.startswith("/auth")
+    )
+    if is_cookie_or_public:
+        return await handler(request)
+
+    # Unknown/non-API paths (e.g. the API root) are left to the router so
+    # they produce a normal 404 instead of an auth error.
+    if not path.startswith("/api/"):
         return await handler(request)
 
     api_secret = request.app["config"].api_secret
     if not api_secret:
-        # No secret configured — reject all non-health requests.
+        # API_SECRET (not CLIENT_ID/CLIENT_SECRET) gates these endpoints.
         return web.json_response(
-            {"error": "API authentication is not configured."},
+            {
+                "error": "API_SECRET is not configured.",
+                "detail": (
+                    "Set API_SECRET in the project .env (next to .env.example) "
+                    "to enable API-key protected endpoints. CLIENT_ID and "
+                    "CLIENT_SECRET do not protect /api endpoints."
+                ),
+            },
             status=503,
         )
 
@@ -144,6 +169,11 @@ def create_app(bot: "KairoBot", config: "Config") -> web.Application:
     # Attach shared state
     app["bot"] = bot
     app["config"] = config
+
+    # Discord OAuth2 + dashboard sessions (public flow — see src/api/oauth.py)
+    from src.api.oauth import OAuthManager, register_routes
+    app["oauth"] = OAuthManager(config=config, bot=bot)
+    register_routes(app)
 
     # Register routes
     app.router.add_get("/health", health)

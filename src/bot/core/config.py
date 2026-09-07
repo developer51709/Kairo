@@ -30,9 +30,15 @@ Adding a new configuration variable:
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+
+# Project root — the directory that holds .env.example. Config() loads the
+# .env file from here no matter which folder the process was started in, so
+# running the bot, API, or dashboard never silently reads the wrong file.
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ConfigError(Exception):
@@ -44,9 +50,15 @@ class Config:
     """
     Central configuration container for Kairo.
 
-    Loads values from the process environment (and an optional .env file)
-    during __post_init__. All other parts of Kairo should receive a Config
-    instance via dependency injection rather than constructing one themselves.
+    Loads values from the process environment (and a .env file) during
+    __post_init__. All other parts of Kairo should receive a Config instance
+    via dependency injection rather than constructing one themselves.
+
+    Args:
+        env_file: Optional path to a .env file. When omitted, the file
+            <project root>/.env (next to .env.example) is used if it exists;
+            otherwise Kairo falls back to the process environment only.
+            Real environment variables always take priority over .env values.
 
     Attributes:
         bot_token        (str)           Discord bot token. Required.
@@ -63,18 +75,42 @@ class Config:
         debug            (bool)          Enables debug mode (verbose logging, hot-reload, etc.).
     """
 
+    env_file: Optional[str] = None
+
     # Internal raw env storage — populated in __post_init__
     _env: dict = field(default_factory=dict, init=False, repr=False)
+    _dotenv_path: Optional[str] = field(default=None, init=False, repr=False)
 
     # ------------------------------------------------------------------ #
     # Lifecycle                                                            #
     # ------------------------------------------------------------------ #
 
     def __post_init__(self) -> None:
-        """Load .env file and validate required variables."""
-        load_dotenv()  # no-op if .env is absent; real env vars take priority
+        """Load the .env file and validate required variables."""
+        dotenv_path = self._resolve_env_file()
+        if dotenv_path is not None:
+            # Existing process env vars take priority over .env values.
+            load_dotenv(dotenv_path=dotenv_path)
+        self._dotenv_path = dotenv_path
         self._env = dict(os.environ)
         self._validate()
+
+    def _resolve_env_file(self) -> Optional[str]:
+        """
+        Decide which .env file to load, anchored to the project root.
+
+        Resolution order:
+          1. An explicit env_file argument (absolute or relative to the
+             current working directory).
+          2. <project root>/.env — the directory that contains .env.example.
+          3. Nothing (process environment only).
+        """
+        if self.env_file is not None:
+            return os.fspath(Path(self.env_file).expanduser().resolve())
+        root_env = PROJECT_ROOT / ".env"
+        if root_env.is_file():
+            return os.fspath(root_env)
+        return None
 
     def _validate(self) -> None:
         """
@@ -92,6 +128,14 @@ class Config:
     # ------------------------------------------------------------------ #
     # Helpers                                                              #
     # ------------------------------------------------------------------ #
+
+    @property
+    def env_file_used(self) -> Optional[str]:
+        """
+        Absolute path of the .env file that was loaded, or None when Kairo
+        is running purely from the process environment.
+        """
+        return self._dotenv_path
 
     def _require(self, key: str) -> str:
         """Return the value of a required environment variable."""
@@ -207,8 +251,12 @@ class Config:
     @property
     def api_secret(self) -> str:
         """
-        Shared secret used to authenticate requests from the dashboard to the API.
-        Required when the API is enabled.
+        Shared secret used to authenticate requests with the X-API-Key header.
+
+        Only required for API-key-protected endpoints (everything under
+        /api/ except /api/v1/me). The dashboard login flow (/auth/*) does not
+        use this secret — it authenticates with CLIENT_ID/CLIENT_SECRET
+        server-side and a kairo_session cookie.
         """
         return self._get("API_SECRET", "")
 
