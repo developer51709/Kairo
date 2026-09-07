@@ -15,6 +15,11 @@ import { defineConfig } from "vite";
 const dashboardPort = Number(process.env.PORT) || 5173;
 const portIsInjected = Boolean(process.env.PORT);
 
+// The Kairo API location. `python src/run.py` passes the configured
+// API_HOST/API_PORT through as KAIRO_API_HOST/KAIRO_API_PORT; when the
+// dashboard is started standalone these fall back to the defaults.
+const apiTarget = `http://${process.env.KAIRO_API_HOST || "127.0.0.1"}:${process.env.KAIRO_API_PORT || 8080}`;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
@@ -26,15 +31,15 @@ export default defineConfig({
     strictPort: portIsInjected,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8080",
+        target: apiTarget,
         changeOrigin: true,
       },
       "/auth": {
-        target: "http://127.0.0.1:8080",
+        target: apiTarget,
         changeOrigin: true,
       },
       "/health": {
-        target: "http://127.0.0.1:8080",
+        target: apiTarget,
         changeOrigin: true,
       },
     },

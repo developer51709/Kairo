@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 # Project root — the directory that holds .env.example. Config() loads the
 # .env file from here no matter which folder the process was started in, so
@@ -88,11 +88,17 @@ class Config:
     def __post_init__(self) -> None:
         """Load the .env file and validate required variables."""
         dotenv_path = self._resolve_env_file()
-        if dotenv_path is not None:
-            # Existing process env vars take priority over .env values.
-            load_dotenv(dotenv_path=dotenv_path)
         self._dotenv_path = dotenv_path
-        self._env = dict(os.environ)
+
+        # Merge .env values with the process environment WITHOUT mutating
+        # os.environ: file values fill gaps, real environment variables take
+        # priority. This keeps Config instances isolated and prevents one
+        # loaded .env from leaking into unrelated code.
+        env: dict = {}
+        if dotenv_path is not None:
+            env.update(dotenv_values(dotenv_path=dotenv_path))
+        env.update(os.environ)
+        self._env = env
         self._validate()
 
     def _resolve_env_file(self) -> Optional[str]:
@@ -100,13 +106,22 @@ class Config:
         Decide which .env file to load, anchored to the project root.
 
         Resolution order:
-          1. An explicit env_file argument (absolute or relative to the
-             current working directory).
+          1. An explicit env_file argument. Relative paths are resolved
+             against the project root (the directory that contains
+             .env.example) so behaviour does not depend on the working
+             directory.
           2. <project root>/.env — the directory that contains .env.example.
           3. Nothing (process environment only).
         """
         if self.env_file is not None:
-            return os.fspath(Path(self.env_file).expanduser().resolve())
+            path = Path(self.env_file).expanduser()
+            if not path.is_absolute():
+                path = PROJECT_ROOT / path
+            resolved = path.resolve()
+            # Only report a file as loaded when it actually exists;
+            # otherwise the startup banner would claim a path that was
+            # never read.
+            return os.fspath(resolved) if resolved.is_file() else None
         root_env = PROJECT_ROOT / ".env"
         if root_env.is_file():
             return os.fspath(root_env)
@@ -215,14 +230,22 @@ class Config:
         """
         Path to the SQLite database file.
 
-        Defaults to 'data/kairo.db' relative to the project root.
-        The directory is created automatically if it does not exist.
+        Defaults to '<project root>/data/kairo.db'. Relative values are
+        resolved against the project root (like the .env file), so the
+        database lands in the same place no matter which directory the
+        process is started from. Absolute paths (e.g. /var/lib/kairo.db)
+        are used as-is. The parent directory is created automatically.
         """
-        return self._get("DB_PATH", "data/kairo.db")
+        raw = self._get("DB_PATH", "data/kairo.db")
+        if os.path.isabs(raw):
+            return raw
+        return os.fspath((PROJECT_ROOT / raw).resolve())
 
     # ------------------------------------------------------------------ #
     # Logging                                                              #
     # ------------------------------------------------------------------ #
+
+    _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
     @property
     def log_level(self) -> str:
@@ -230,9 +253,15 @@ class Config:
         Logging verbosity level.
 
         Accepted values (case-insensitive): DEBUG, INFO, WARNING, ERROR, CRITICAL.
-        Defaults to INFO.
+        Defaults to INFO. Invalid values fail fast at startup.
         """
-        return self._get("LOG_LEVEL", "INFO").upper()
+        level = self._get("LOG_LEVEL", "INFO").upper()
+        if level not in self._VALID_LOG_LEVELS:
+            raise ConfigError(
+                f"Invalid LOG_LEVEL: {level!r}. "
+                f"Expected one of: {', '.join(sorted(self._VALID_LOG_LEVELS))}."
+            )
+        return level
 
     # ------------------------------------------------------------------ #
     # API                                                                  #

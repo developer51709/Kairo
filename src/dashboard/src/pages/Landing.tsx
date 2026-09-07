@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { LoginDiscord } from "../components/login-discord";
 import { Wordmark } from "../components/logo";
+import { AUTH_LOGOUT_PATH, useSession } from "../lib/auth";
+import type { MeResponse } from "../lib/auth";
 import {
   ArrowRightIcon,
   BoltIcon,
@@ -107,6 +109,7 @@ export default function Landing() {
   return (
     <div className="bg-night">
       <SiteHeader />
+      <AuthBanner />
       <main>
         <Hero />
         <Features />
@@ -131,6 +134,7 @@ const HEADER_LINKS = [
 
 function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { me } = useSession();
 
   return (
     <header className="sticky top-0 z-40 border-b border-line/60 bg-night/80 backdrop-blur-md">
@@ -155,7 +159,7 @@ function SiteHeader() {
 
         <div className="flex items-center gap-2">
           <div className="hidden md:block">
-            <LoginDiscord />
+            <HeaderAuth me={me} />
           </div>
           <button
             type="button"
@@ -187,13 +191,123 @@ function SiteHeader() {
                 </a>
               ))}
               <div className="py-4">
-                <LoginDiscord fullWidth />
+                <MobileAuth me={me} onNavigate={() => setMenuOpen(false)} />
               </div>
             </nav>
           </div>
         )}
       </div>
     </header>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Auth feedback + session chips                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One-shot banner for ?auth=success / ?auth=error (set by the API after the
+ * Discord OAuth round-trip), then the query param is cleaned from the URL.
+ */
+function AuthBanner() {
+  const [notice, setNotice] = useState<{ tone: "ok" | "err"; text: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get("auth");
+    if (auth === "success") {
+      setNotice({ tone: "ok", text: "Signed in with Discord — welcome to Kairo." });
+    } else if (auth === "error") {
+      setNotice({ tone: "err", text: "Sign-in didn't complete. Please try again." });
+    }
+    if (auth) {
+      params.delete("auth");
+      const qs = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        qs ? `${window.location.pathname}?${qs}` : window.location.pathname,
+      );
+    }
+  }, []);
+
+  if (!notice) return null;
+
+  return (
+    <div className="border-b border-line/60">
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-5 py-3 sm:px-8">
+        <span
+          aria-hidden
+          className={`h-2 w-2 shrink-0 rounded-full ${
+            notice.tone === "ok" ? "bg-gold" : "bg-red-400"
+          }`}
+        />
+        <p className="text-sm text-sand">{notice.text}</p>
+        <button
+          type="button"
+          onClick={() => setNotice(null)}
+          className="ml-auto shrink-0 rounded-md p-1 text-mist transition-colors hover:text-sand"
+          aria-label="Dismiss"
+        >
+          <XIcon className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function userInitial(username: string): string {
+  return (username.trim()[0] ?? "?").toUpperCase();
+}
+
+function HeaderAuth({ me }: { me: MeResponse | null }) {
+  if (!me) return <LoginDiscord />;
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/15 text-xs font-bold text-gold">
+        {userInitial(me.user.username)}
+      </span>
+      <span className="max-w-32 truncate text-sm font-medium text-sand">
+        {me.user.username}
+      </span>
+      <a
+        href={AUTH_LOGOUT_PATH}
+        className="rounded-lg px-2.5 py-1.5 text-xs text-mist transition-colors hover:bg-panel hover:text-gold"
+      >
+        Sign out
+      </a>
+    </div>
+  );
+}
+
+function MobileAuth({
+  me,
+  onNavigate,
+}: {
+  me: MeResponse | null;
+  onNavigate: () => void;
+}) {
+  if (!me) return <LoginDiscord fullWidth />;
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/15 text-xs font-bold text-gold">
+          {userInitial(me.user.username)}
+        </span>
+        <span className="truncate text-sm font-medium text-sand">
+          {me.user.username}
+        </span>
+      </span>
+      <a
+        href={AUTH_LOGOUT_PATH}
+        onClick={onNavigate}
+        className="shrink-0 rounded-lg border border-line px-3 py-2 text-xs text-mist transition-colors hover:border-gold/40 hover:text-gold"
+      >
+        Sign out
+      </a>
+    </div>
   );
 }
 

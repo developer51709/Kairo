@@ -278,16 +278,29 @@ def start_dashboard_process() -> subprocess.Popen | None:
         return None
 
     command = [package_manager, "run", "dev"]
+
+    # The Vite proxy targets the API; hand it the configured host/port so a
+    # custom API_PORT/API_HOST in the root .env is honoured (vite.config.ts
+    # falls back to 127.0.0.1:8080 when these are unset).
+    dashboard_env = dict(os.environ)
+    api_host = os.environ.get("KAIRO_API_HOST")
+    api_port = os.environ.get("KAIRO_API_PORT")
+    if api_host:
+        dashboard_env["KAIRO_API_HOST"] = api_host
+    if api_port:
+        dashboard_env["KAIRO_API_PORT"] = api_port
+
     try:
         if os.name == "posix":
             # Own process group so the whole Vite tree can be stopped later.
             proc = subprocess.Popen(
                 command,
                 cwd=DASHBOARD_DIR,
+                env=dashboard_env,
                 start_new_session=True,
             )
         else:
-            proc = subprocess.Popen(command, cwd=DASHBOARD_DIR)
+            proc = subprocess.Popen(command, cwd=DASHBOARD_DIR, env=dashboard_env)
     except OSError as exc:
         Branding.print_warning(f"Could not launch dashboard: {exc}")
         return None
@@ -328,14 +341,10 @@ async def main() -> None:
     Branding.print_header()
     Branding.print_starting()
 
-    # Relative --env-file paths are interpreted from the project root
-    # (where .env.example lives), regardless of the working directory.
-    env_file = args.env_file
-    if env_file and not os.path.isabs(env_file):
-        env_file = os.path.join(PROJECT_ROOT, env_file)
-
+    # Relative --env-file paths are anchored to the project root by Config
+    # itself (where .env.example lives), regardless of the working directory.
     try:
-        config = Config(env_file=env_file)
+        config = Config(env_file=args.env_file)
         Branding.print_success("Configuration loaded")
     except ConfigError as e:
         print(f"\n{Colors.BRIGHT_RED if sys.stdout.isatty() else ''}x{Colors.RESET if sys.stdout.isatty() else ''} Configuration error:\n{e}\n", file=sys.stderr)
@@ -347,9 +356,19 @@ async def main() -> None:
     else:
         Branding.print_info("Env file: (none — using process environment)")
 
+    # Make the API location visible to the dashboard subprocess so Vite's
+    # proxy targets the configured host/port (see start_dashboard_process()
+    # and src/dashboard/vite.config.ts). setdefault so an explicit shell
+    # override wins.
+    os.environ.setdefault("KAIRO_API_HOST", config.api_host)
+    os.environ.setdefault("KAIRO_API_PORT", str(config.api_port))
+
     token = config.bot_token
     if token:
-        masked = token[:5] + "*" * (len(token) - 5)
+        # Never reveal more than the first few characters, even for short
+        # or malformed tokens.
+        visible = min(5, len(token))
+        masked = token[:visible] + "*" * max(0, len(token) - visible)
     else:
         masked = "Not set"
 

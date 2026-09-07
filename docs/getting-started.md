@@ -31,6 +31,10 @@ cd kairo
    - **Message Content Intent**
 5. Copy your **Bot Token** — you will need it in the next step.
 6. Go to **General Information** and copy the **Application ID** (Client ID) and **Client Secret**.
+7. Go to **OAuth2 → Redirects** and register the dashboard's OAuth callback:
+   `http://localhost:5173/auth/callback` (or `DASHBOARD_URL/auth/callback`
+   once deployed — it must match exactly). Grant the `identify` and `guilds`
+   scopes for the dashboard login.
 
 > ⚠️ Keep your bot token secret. Never share it or commit it to a repository.
 

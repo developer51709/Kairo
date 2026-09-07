@@ -35,7 +35,10 @@ bun run dev        # http://localhost:5173 (proxies /api, /auth & /health to the
 
 The Vite dev server proxies `/api/*`, `/auth/*` and `/health` to the Kairo
 API (`python src/run.py`, default `http://127.0.0.1:8080`) so the browser
-only ever talks to the dashboard origin.
+only ever talks to the dashboard origin. When started via `python src/run.py`
+the configured `API_HOST`/`API_PORT` from the root `.env` are passed through
+as `KAIRO_API_HOST`/`KAIRO_API_PORT` so a custom API port works without
+touching this config.
 
 ### Scripts
 

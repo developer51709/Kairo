@@ -3,9 +3,9 @@
 The Kairo REST API is an optional HTTP server that allows the web dashboard
 to communicate with the running bot. It runs in the same process as the bot.
 
-> **Status: Phase 1 scaffold**
-> Only `/health` and `/api/v1/status` are implemented. Full endpoint
-> documentation will be added in Phase 4.
+> **Status: Phase 1 scaffold + OAuth2**
+> `/health`, `/api/v1/status`, the Discord OAuth2 flow (`/auth/*`), and
+> `/api/v1/me` are implemented. Guild/config/moderation endpoints land in Phase 4.
 
 ---
 

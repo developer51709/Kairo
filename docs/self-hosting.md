@@ -120,12 +120,16 @@ server {
         proxy_pass http://127.0.0.1:8080;
     }
 
-    # Dashboard (once implemented)
+    # Dashboard (Vite dev server)
     location / {
         proxy_pass http://127.0.0.1:5173;
     }
 }
 ```
+
+The `DASHBOARD_URL` in your `.env` must be the public HTTPS URL
+(`https://kairo.example.com`) so the OAuth2 redirect matches what is
+registered on Discord.
 
 ---
 
@@ -154,6 +158,11 @@ docker compose logs -f kairo
 Cloudflare Tunnel lets you expose your local Kairo installation without
 opening any firewall ports.
 
+The dashboard calls `/api` and `/auth` on its **own origin**, so a tunnel
+must expose both the dashboard and the API behind one hostname. The simplest
+way is to put the local reverse proxy from the section above in front of
+both, then tunnel to the proxy:
+
 ```bash
 # Install cloudflared
 # https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/install-and-setup/installation/
@@ -164,14 +173,15 @@ cloudflared tunnel login
 # Create a tunnel
 cloudflared tunnel create kairo
 
-# Configure
+# Configure — nginx serves the dashboard and proxies /api, /auth, /health
+# to the Kairo API (see the Reverse Proxy section above).
 cat > ~/.cloudflared/config.yml <<EOF
 tunnel: <TUNNEL_ID>
 credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
   - hostname: kairo.example.com
-    service: http://127.0.0.1:8080
+    service: http://127.0.0.1:80
   - service: http_status:404
 EOF
 
@@ -179,7 +189,12 @@ EOF
 cloudflared tunnel run kairo
 ```
 
-Set `DASHBOARD_URL=https://kairo.example.com` in your `.env`.
+Set `DASHBOARD_URL=https://kairo.example.com` in your `.env` (the tunnel
+makes the OAuth2 redirect URI `https://kairo.example.com/auth/callback`).
+
+> A tunnel cannot split paths across two local services, so routing the API
+> to a different hostname or port than the dashboard will break login —
+> keep them behind the same origin via the proxy.
 
 ---
 

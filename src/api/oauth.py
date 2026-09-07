@@ -102,7 +102,7 @@ class OAuthManager:
         Exchange an authorization code for an access token.
 
         CLIENT_SECRET is sent from the server to Discord here — never from
-        the browser.
+        the browser. Raises OAuthError on any HTTP or transport failure.
         """
         data = {
             "client_id": self.config.client_id,
@@ -111,31 +111,49 @@ class OAuthManager:
             "code": code,
             "redirect_uri": self.config.oauth_redirect,
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{DISCORD_API}/oauth2/token", data=data
-            ) as response:
-                body = await response.json()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{DISCORD_API}/oauth2/token", data=data
+                ) as response:
+                    body = await response.json(content_type=None)
+        except (aiohttp.ClientError, ValueError) as exc:
+            raise OAuthError(
+                f"Discord token exchange failed: {exc}"
+            ) from exc
         if response.status != 200:
             raise OAuthError(
                 f"Discord token exchange failed (HTTP {response.status})."
             )
         return body.get("access_token", "")
 
-    async def fetch_identity(self, access_token: str) -> dict:
+    async def fetch_identity(self, access_token: str) -> tuple[dict, list]:
         """
         Fetch the authenticated user and their guilds from Discord.
+
+        Returns (user, guilds). Raises OAuthError when Discord rejects the
+        token or returns an unexpected payload.
         """
         headers = {"Authorization": f"Bearer {access_token}"}
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{DISCORD_API}/users/@me", headers=headers
-            ) as response:
-                user = await response.json()
-            async with session.get(
-                f"{DISCORD_API}/users/@me/guilds", headers=headers
-            ) as response:
-                guilds = await response.json()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{DISCORD_API}/users/@me", headers=headers
+                ) as response:
+                    user = await response.json(content_type=None)
+                async with session.get(
+                    f"{DISCORD_API}/users/@me/guilds", headers=headers
+                ) as response:
+                    guilds = await response.json(content_type=None)
+        except (aiohttp.ClientError, ValueError) as exc:
+            raise OAuthError(f"Discord identity request failed: {exc}") from exc
+
+        if response.status != 200 or not isinstance(user, dict):
+            raise OAuthError(
+                f"Discord identity request failed (HTTP {response.status})."
+            )
+        if not isinstance(guilds, list):
+            guilds = []  # Discord error payload (dict) — treat as no guilds
         return user, guilds
 
     # ------------------------------------------------------------------ #
@@ -143,6 +161,18 @@ class OAuthManager:
     # ------------------------------------------------------------------ #
 
     def create_session(self, payload: dict) -> str:
+        # Opportunistically prune expired sessions so the in-memory store
+        # cannot grow without bound on a long-lived instance.
+        if len(self._sessions) >= 1000:
+            now = time.time()
+            expired = [
+                token
+                for token, data in self._sessions.items()
+                if (now - data["created_at"]) > SESSION_TTL_SECONDS
+            ]
+            for token in expired:
+                self._sessions.pop(token, None)
+
         token = secrets.token_urlsafe(32)
         payload = dict(payload)
         payload["created_at"] = time.time()
@@ -172,13 +202,19 @@ class OAuthManager:
 
         guilds: raw payload from GET /users/@me/guilds.
         """
+        if not isinstance(guilds, list):
+            return []
+
         bot_guild_ids = {str(g.id) for g in self.bot.guilds} if (
             self.bot is not None and self.bot.is_ready()
         ) else None
 
         manageable = []
         for guild in guilds:
-            permissions = int(guild.get("permissions") or 0)
+            try:
+                permissions = int(guild.get("permissions") or 0)
+            except (TypeError, ValueError):
+                permissions = 0
             can_manage = bool(
                 permissions & MANAGE_GUILD_PERMISSION
                 or permissions & ADMINISTRATOR_PERMISSION
@@ -237,7 +273,9 @@ async def auth_callback(request: web.Request) -> web.Response:
     try:
         access_token = await manager.exchange_code(code)
         user, guilds = await manager.fetch_identity(access_token)
-    except OAuthError:
+    except (OAuthError, aiohttp.ClientError):
+        # Includes transport failures (network down, Discord timeout) —
+        # surface them as a failed login rather than a 500.
         raise web.HTTPFound(location=f"{dashboard_url}/?auth=error")
 
     if not user or user.get("id") is None:
@@ -262,6 +300,9 @@ async def auth_callback(request: web.Request) -> web.Response:
         max_age=SESSION_TTL_SECONDS,
         httponly=True,
         samesite="Lax",
+        # Only send the session cookie over HTTPS when the dashboard is
+        # served over HTTPS; plain http://localhost stays cookie-friendly.
+        secure=manager.config.dashboard_url.startswith("https"),
         path="/",
     )
     raise response

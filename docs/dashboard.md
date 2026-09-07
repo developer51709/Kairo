@@ -1,6 +1,7 @@
 # Dashboard
 
-> 🚧 The dashboard is planned for **Phase 4**. This document describes the design.
+> ✅ The dashboard scaffold and landing page are built (Phase 6). This document
+describes the design, the authentication flow, and the planned pages.
 
 The Kairo web dashboard is a Vite-powered single-page application that provides
 a graphical interface for managing servers and configuring Kairo.
@@ -31,16 +32,25 @@ Browser → HTTPS → Reverse proxy → Kairo API → KairoBot → Database
 
 ## Authentication Flow
 
-1. User clicks "Login with Discord".
-2. Browser redirects to Discord's OAuth2 authorization URL.
+The OAuth2 handshake is handled **entirely by the API** (`src/api/oauth.py`)
+using the root `.env` `CLIENT_ID`/`CLIENT_SECRET` — the secret never reaches
+the browser. The dashboard simply points its "Login with Discord" button at
+`/auth/discord`.
+
+1. User clicks "Login with Discord" — the browser follows `/auth/discord`.
+2. The API redirects to Discord's OAuth2 authorization URL (with a CSRF state).
 3. User approves the request.
-4. Discord redirects to `OAUTH_REDIRECT` with an authorization code.
-5. The dashboard exchanges the code for a Discord access token.
-6. The dashboard fetches the user's guilds from Discord.
-7. For each guild, the dashboard checks:
-   a. Is the bot installed in this guild?
-   b. Does the user have `MANAGE_GUILD` permission in this guild?
-8. Only guilds passing both checks are shown in the guild selector.
+4. Discord redirects to `OAUTH_REDIRECT` (`DASHBOARD_URL/auth/callback`) with an authorization code.
+5. The API exchanges the code for a Discord access token (**server-side**).
+6. The API fetches the user's guilds from Discord.
+7. The API keeps only guilds the user can manage:
+   a. `MANAGE_GUILD` (or `ADMINISTRATOR`) permission in the guild.
+   b. `bot_installed` is flagged when Kairo is in the guild.
+8. The API sets an HttpOnly `kairo_session` cookie and redirects back to the dashboard,
+   which loads `/api/v1/me` to show the signed-in user.
+
+Register `DASHBOARD_URL/auth/callback` as an OAuth2 redirect URI on Discord
+(Developer Portal → OAuth2 → Redirects) and grant the `identify` + `guilds` scopes.
 
 ---
 
@@ -86,25 +96,26 @@ Browser → HTTPS → Reverse proxy → Kairo API → KairoBot → Database
 
 ## Development
 
-Once scaffolded in Phase 4:
-
 ```bash
 cd src/dashboard
 
 # Install dependencies
-npm install
+bun install        # or: npm install
 
 # Start dev server (with Vite HMR)
-npm run dev
+bun run dev
 
 # Build for production
-npm run build
+bun run build
 
 # Preview production build
-npm run preview
+bun run preview
 ```
 
-The dev server proxies API requests to `http://127.0.0.1:8080`.
+The dev server proxies `/api/*`, `/auth/*`, and `/health` to the Kairo API.
+By default that is `http://127.0.0.1:8080`; when started via `python src/run.py`
+the configured `API_HOST`/`API_PORT` from the root `.env` are passed through
+so a custom API port works automatically.
 
 ---
 
@@ -113,4 +124,6 @@ The dev server proxies API requests to `http://127.0.0.1:8080`.
 - The dashboard validates guild permissions on every page load — not just at login.
 - The API key (`API_SECRET`) is never exposed to the browser.
 - Discord access tokens are stored server-side in sessions (not in localStorage).
-- All API requests from the dashboard are server-side (next.js-style SSR or BFF pattern).
+- `CLIENT_SECRET` lives only in the API process; the browser never sees it.
+- The `kairo_session` cookie is HttpOnly and gets the `Secure` flag when the
+dashboard is served over HTTPS.

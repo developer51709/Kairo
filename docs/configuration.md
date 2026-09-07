@@ -43,7 +43,10 @@ Use `DEV_GUILD_ID` during development; leave it empty for production deployments
 |-----------|-----------------|--------------------------------------------------|
 | `DB_PATH` | `data/kairo.db` | Path to the SQLite database file.                |
 
-The parent directory is created automatically at startup if it does not exist.
+Relative values are resolved against the project root (next to `.env.example`),
+so the database lands in the same place no matter which directory the process
+is started from. Absolute paths are used as-is. The parent directory is
+created automatically at startup if it does not exist.
 
 For production, consider placing the database in a backed-up location:
 ```
