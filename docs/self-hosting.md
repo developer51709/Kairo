@@ -7,6 +7,7 @@ This guide covers running Kairo on your own hardware or server.
 ## Requirements
 
 - Python 3.11 or higher
+- Node.js (bun or npm) — only when running the web dashboard component
 - 512MB RAM minimum (1GB recommended)
 - Linux, macOS, or Windows
 - A Discord application with bot token, client ID, and client secret
@@ -33,9 +34,12 @@ pip install -r requirements.txt
 # 4. Configure
 python src/setup.py
 
-# 5. Run
+# 5. Run (bot + API + dashboard)
 python src/run.py
 ```
+
+To run just the bot and API on a headless server (no web dashboard), use
+`python src/run.py --no-dashboard`.
 
 ---
 
@@ -74,10 +78,13 @@ sudo systemctl start kairo
 sudo journalctl -u kairo -f   # View logs
 ```
 
-### Running with the API Server
+### Running bot + API without the dashboard
+
+`src/run.py` starts the bot, API, and dashboard by default. For headless
+servers that only need the bot and the REST API, disable the dashboard:
 
 ```ini
-ExecStart=/opt/kairo/.venv/bin/python src/run.py --with-api
+ExecStart=/opt/kairo/.venv/bin/python src/run.py --no-dashboard
 ```
 
 ---
@@ -105,6 +112,11 @@ server {
 
     # Health check
     location /health {
+        proxy_pass http://127.0.0.1:8080;
+    }
+
+    # Discord OAuth2 login flow (handled by the API)
+    location /auth {
         proxy_pass http://127.0.0.1:8080;
     }
 

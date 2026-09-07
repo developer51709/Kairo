@@ -11,8 +11,13 @@ to communicate with the running bot. It runs in the same process as the bot.
 
 ## Starting the API
 
+The API is part of Kairo's default startup, so a plain `python src/run.py`
+already starts it (alongside the bot and the dashboard). To run it on its
+own, or without the web dashboard:
+
 ```bash
-python src/run.py --with-api
+python src/run.py --only api         # API only
+python src/run.py --no-dashboard    # bot + API
 ```
 
 The API server starts at `http://<API_HOST>:<API_PORT>` (default: `http://127.0.0.1:8080`).
@@ -21,7 +26,13 @@ The API server starts at `http://<API_HOST>:<API_PORT>` (default: `http://127.0.
 
 ## Authentication
 
-All endpoints except `/health` require the `X-API-Key` header:
+All endpoints except the following public routes require the `X-API-Key` header:
+
+| Public route     | Why                                                        |
+|------------------|-------------------------------------------------------------|
+| `GET /health`    | Health check                                               |
+| `GET /auth/*`    | Discord OAuth2 flow (start / callback / logout)            |
+| `GET /api/v1/me` | Authenticated via the `kairo_session` cookie instead       |
 
 ```
 X-API-Key: your_api_secret_here
@@ -71,6 +82,25 @@ Bot operational status.
   }
 }
 ```
+
+---
+
+### Discord OAuth2 & sessions
+
+The dashboard login flow is handled entirely server-side using the root
+`.env` `CLIENT_ID` and `CLIENT_SECRET` — neither is ever exposed to the
+browser. Implementation: `src/api/oauth.py`.
+
+| Method | Path              | Description                                                            |
+|--------|-------------------|------------------------------------------------------------------------|
+| GET    | `/auth/discord`   | 302 to Discord's consent screen (state = CSRF token)                  |
+| GET    | `/auth/callback`  | Exchange `?code=` for a token, set `kairo_session` cookie, redirect to dashboard |
+| GET    | `/auth/logout`    | Clear the session cookie and redirect to the dashboard                |
+| GET    | `/api/v1/me`      | Current session: user + guilds the user can manage (with `bot_installed`) |
+
+`/auth/callback` must be registered as an OAuth2 redirect URI on Discord —
+by default that is `DASHBOARD_URL/auth/callback`. Sessions are stored in
+memory (single self-hosted instance); persisting them is future work.
 
 ---
 

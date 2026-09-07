@@ -73,6 +73,14 @@ pip install -r requirements.txt
 
 Or if you used the setup wizard and chose to install dependencies, skip this step.
 
+To run the **web dashboard** too, install its dependencies as well (requires Node.js):
+
+```bash
+cd src/dashboard
+bun install      # or: npm install
+cd ../..
+```
+
 ---
 
 ## 5. Invite Kairo to a Server
@@ -91,6 +99,9 @@ Open the URL in a browser and select the server to invite Kairo to.
 
 ## 6. Run Kairo
 
+One command starts **all three components** — the Discord bot, the REST API,
+and the web dashboard (Vite dev server):
+
 ```bash
 python src/run.py
 ```
@@ -103,17 +114,27 @@ You should see output like:
 [2026-01-01 12:00:00] [INFO    ] kairo.core.bot: Kairo is ready! Logged in as Kairo#1234 (ID: 123456789). Serving 1 guild(s).
 ```
 
+- The API listens on `http://127.0.0.1:8080` by default.
+- The dashboard is served at `http://localhost:5173` (set `DASHBOARD_URL` in `.env` to override).
+- Press **Ctrl-C** to stop everything cleanly.
+
+> If the dashboard is skipped with a warning, install its dependencies first
+> (step 4) or pass `--no-dashboard` to run without it.
+
 ---
 
-## 7. (Optional) Run with the API Server
+## 7. (Optional) Choose Which Components Run
 
-The REST API is used by the web dashboard. Start it with the `--with-api` flag:
+By default every component starts. Disable individual ones with `--no-*`, or
+run exactly one with `--only`:
 
 ```bash
-python src/run.py --with-api
+python src/run.py --no-dashboard   # bot + API only (headless server)
+python src/run.py --no-api         # bot + dashboard, no API
+python src/run.py --only bot       # bot only
+python src/run.py --only api       # API only
+python src/run.py --only dashboard # dashboard only
 ```
-
-The API will be available at `http://127.0.0.1:8080` by default.
 
 ---
 

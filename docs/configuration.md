@@ -90,15 +90,21 @@ Use `0.0.0.0` only if you need direct external access (not recommended).
 
 ### API_SECRET
 
-A long, random string used to authenticate dashboard requests to the API.
-Generate one with:
+A long, random string used to authenticate requests with the `X-API-Key`
+header. Generate one with:
 
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-The dashboard includes this in the `X-API-Key` request header. If not set,
-the API will reject all non-health-check requests with HTTP 503.
+Endpoints under `/api/` (except `/api/v1/me`) require this key; if it is not
+set they return HTTP 503. Note that `CLIENT_ID`/`CLIENT_SECRET` do **not**
+gate these endpoints — the Discord login flow (`/auth/*`) runs entirely
+server-side with those credentials and a session cookie, and never needs
+`API_SECRET`.
+
+The `.env` file is always loaded from the project root (next to
+`.env.example`), no matter which directory the process is started from.
 
 ---
 
